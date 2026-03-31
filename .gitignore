@@ -1,0 +1,12 @@
+# Data and Results
+Dataset/
+morocco_shapefile/
+results/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+log.txt
