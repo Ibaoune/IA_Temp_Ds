@@ -20,7 +20,7 @@ general:
 training:
   learning_rate: 1e-3
   epochs: 10000
-  batch_size: 4
+  batch_size: 64
   loss_type: "bernoulli_gamma" 
   norm_mode: "gridbox"         
   early_stopping_max: 15
