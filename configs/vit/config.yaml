@@ -41,10 +41,10 @@ region:
 dates:
   train:
     start: "1979-01-01"
-    end: "2014-12-31"
+    end: "2005-12-31"
   test:
-    start: "1984-01-01"
-    end: "1985-12-31"
+    start: "2006-01-01"
+    end: "2020-12-31"
 
 paths:
   data_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/"
