@@ -20,11 +20,9 @@ from utils import vprint
 
 from utils import set_verbose
 
-cfg = load_config("config.yaml")
-set_verbose(cfg.verbose)
-
 def main():
-    cfg = load_config(train_mode=False)
+    cfg = load_config(train_mode=False, path="config.yaml")
+    set_verbose(cfg.verbose)
     vprint("=== Starting evaluation process ===")
 
      

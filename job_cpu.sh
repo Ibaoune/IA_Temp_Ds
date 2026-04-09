@@ -11,7 +11,7 @@
 ########################################
 # USER SHOULD SET THESE TO yes OR no
 ########################################
-train="yes"        # yes= activate training flag / no= deactivate training flag
+train="no"        # yes= activate training flag / no= deactivate training flag
 validation="yes"    # yes= activate validtion flag / no= deactivate validation flag
 ########################################
 

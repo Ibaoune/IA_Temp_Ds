@@ -48,6 +48,15 @@ def _print_basic_stats(arr, name, vprint_fn):
     Print mean / min / max statistics for an xarray DataArray.
     """
     try:
+        # Avoid loading everything just for stats if it's a large array
+        if arr.size > 1000000:
+            # Take a small sample lazily if possible, or just compute mean/min/max lazily
+            mean = float(arr.mean().values)
+            vmin = float(arr.min().values)
+            vmax = float(arr.max().values)
+            vprint_fn(f"   [STATS] {name}: mean={mean:.6g}, min={vmin:.6g}, max={vmax:.6g}")
+            return
+
         vals = arr.values
         if not np.issubdtype(vals.dtype, np.number):
             vals = vals.astype("float32")
@@ -71,6 +80,63 @@ def _print_basic_stats(arr, name, vprint_fn):
     except Exception as e:
         vprint_fn(f"   [STATS] {name}: unable to compute stats ({e})")
 
+def _process_level_array(cfg, arr, var, lev, curr_time_dim, curr_lev_dim):
+    """
+    Common processing for a single level array (renaming, transposition, interpolation).
+    """
+    # ERA5 cleanup
+    if cfg.src == "era5":
+        rename = {}
+        if "latitude" in arr.dims:
+            rename["latitude"] = "lat"
+        if "longitude" in arr.dims:
+            rename["longitude"] = "lon"
+        if rename:
+            arr = arr.rename(rename)
+
+        if "level" in arr.dims:
+            arr = arr.drop_vars("level", errors="ignore")
+        if "level" in arr.coords:
+            arr = arr.drop_vars("level", errors="ignore")
+
+        for c in ["level", "number", "expver", "surface", "valid_time"]:
+            if c in arr.coords:
+                arr = arr.drop_vars(c, errors="ignore")
+
+    # Coordinate names
+    lat_name = 'lat' if 'lat' in arr.coords or 'lat' in arr.dims else 'latitude'
+    lon_name = 'lon' if 'lon' in arr.coords or 'lon' in arr.dims else 'longitude'
+    
+    rename_dict = {curr_time_dim: "time"}
+    if lat_name != "lat": rename_dict[lat_name] = "lat"
+    if lon_name != "lon": rename_dict[lon_name] = "lon"
+    arr = arr.rename(rename_dict)
+
+    # Explicitly drop the level coordinate to avoid MergeError during concat
+    if curr_lev_dim in arr.coords:
+        arr = arr.drop_vars(curr_lev_dim)
+
+    arr = arr.transpose("time", "lat", "lon")
+    
+    # Subset dates
+    time_slice = slice(
+        min(cfg.start_date_train, cfg.start_date_test),
+        max(cfg.end_date_train, cfg.end_date_test)
+    )
+    arr_sub = arr.sel({"time": time_slice})
+    
+    # Interpolate
+    from interpolation import interpolate_to_target_resolution
+    arr_sub = interpolate_to_target_resolution(
+        arr_sub, 
+        resolution=cfg.resolution, 
+        method=cfg.interpolation_type,
+        bounds=(cfg.lon_min, cfg.lon_max, cfg.lat_min, cfg.lat_max)
+    )
+    
+    _print_basic_stats(arr_sub, f"{var}_{lev}", vprint)
+    return arr_sub.expand_dims({"level": [f"{var}_{lev}"]})
+
 # -------------------------------------
 #              Main loader
 # -------------------------------------
@@ -78,17 +144,6 @@ def _print_basic_stats(arr, name, vprint_fn):
 def load_datasets(cfg):
     """
     Unified loader for ERA5 → MSWEP and LMDZ → LMDZ35.
-
-    Returns:
-        X           : xarray.Dataset (full predictors)
-        y_train     : torch.Tensor
-        y_test      : torch.Tensor
-        lon_in      : np.ndarray
-        lat_in      : np.ndarray
-        lon_out     : np.ndarray
-        lat_out     : np.ndarray
-        time_train  : np.ndarray
-        time_test   : np.ndarray
     """
 
     vprint(f"=== Loading datasets (src={cfg.src}, target={cfg.target}) ===")
@@ -158,158 +213,107 @@ def load_datasets(cfg):
         _print_basic_stats(y_train_x, "precip (train)", vprint)
         _print_basic_stats(y_test_x, "precip (test)", vprint)
 
-        # Keep tensors on CPU (GPU later in training loop)
-        y_train = torch.tensor(y_train_x.values.astype("float32"))
-        y_test  = torch.tensor(y_test_x.values.astype("float32"))
-        
         lon_out = ds_pr.lon.values
         lat_out = ds_pr.lat.values
         time_dim_found = next((d for d in [time_dim, "time", "time_counter"] if d in y_train_x.coords or d in y_train_x.dims), time_dim)
         time_train_out = y_train_x[time_dim_found].values
         time_test_out = y_test_x[time_dim_found].values
+
+        if cfg.train_mode:
+            y_train = torch.tensor(y_train_x.values.astype("float32"))
+        else:
+            y_train = torch.zeros((len(time_train_out), len(lat_out), len(lon_out)))
+            
+        y_test  = torch.tensor(y_test_x.values.astype("float32"))
     else:
-        # Dummy values to be filled after X is loaded
-        y_train = None
-        y_test = None
-        lon_out = None
-        lat_out = None
-        time_train_out = None
-        time_test_out = None
+        y_train, y_test, lon_out, lat_out, time_train_out, time_test_out = [None]*6
 
     # 2) Load predictor variables
     variables = cfg.variables
     levels = cfg.levels
     data_arrays = []
-
-    # Map our generic config variables to LMDZ specific names from config.yaml
     lmdz_var_map = cfg.lmdz_var_map
-
-    if cfg.src == "lmdz":
-        base_dir = getattr(cfg, "folder", cfg.bc_reference_folder)
-        if not base_dir.endswith("/"):
-            base_dir += "/"
-        
-        # Decide the suffix (hist, ssp245, ssp585) based on the current scenario or folder
-        suffix = "hist" 
-        for s in ["ssp245", "ssp585"]:
-            if s in base_dir.lower() or (hasattr(cfg, "scenario_name") and s in cfg.scenario_name.lower()):
-                suffix = s
-                break
-        
-        file_pattern = cfg.lmdz_predictor_pattern
-    else:
-        file_pattern = cfg.era5_predictor_pattern
 
     for var in variables:
         lmdz_var = lmdz_var_map.get(var.lower(), var.lower())
         
         if cfg.src == "lmdz":
-            filename = file_pattern.format(folder=base_dir.rstrip("/"), lmdz_var=lmdz_var, suffix=suffix)
+            base_dir = getattr(cfg, "folder", cfg.bc_reference_folder).rstrip("/") + "/"
+            suffix = "hist" 
+            for s in ["ssp245", "ssp585"]:
+                if s in base_dir.lower(): suffix = s; break
+            file_pattern = cfg.lmdz_predictor_pattern
         else:
-            filename = file_pattern.format(var=var.lower())
+            base_dir = None
+            suffix = None
+            file_pattern = cfg.era5_predictor_pattern
 
-        vprint(f"Loading {filename}...")
+        is_level_specific = "{level}" in file_pattern or "{lev}" in file_pattern
 
-        if not os.path.exists(filename) and cfg.src == "lmdz" and "present" in base_dir:
-            # Fallback for LMDZ present folder structure
-            alt_filename = os.path.join(base_dir, "all_Mor", f"{lmdz_var}-{suffix}.nc")
-            if os.path.exists(alt_filename):
-                filename = alt_filename
-                vprint(f"  → Found in: {filename}")
+        if not is_level_specific:
+            # Merged variable files
+            if cfg.src == "lmdz":
+                filename = file_pattern.format(folder=base_dir.rstrip("/"), lmdz_var=lmdz_var, suffix=suffix)
+            else:
+                filename = file_pattern.format(var=var.lower())
 
-        if not os.path.exists(filename):
-            vprint(f"  → FILE NOT FOUND: {filename}")
-            continue
+            vprint(f"Loading merged variable file: {filename}...")
+            if not os.path.exists(filename):
+                vprint(f"  → FILE NOT FOUND: {filename}")
+                continue
 
-        try:
-            ds = xr.open_dataset(filename).squeeze()
-            
-            # Detect dimensions dynamically for this file
-            curr_time_dim = next((d for d in ["time_counter", "time"] if d in ds.dims), "time")
-            curr_lev_dim = next((d for d in ["presnivs", "plev", "level"] if d in ds.dims), "level")
+            try:
+                ds_full = xr.open_dataset(filename)
+                curr_lev_dim = next((d for d in ["presnivs", "plev", "level"] if d in ds_full.dims), "level")
+                curr_time_dim = next((d for d in ["time_counter", "time"] if d in ds_full.dims), "time")
 
-            ds = use.mask_dataset(
-                ds,
-                slice(cfg.lon_min, cfg.lon_max),
-                slice(cfg.lat_min, cfg.lat_max),
-            )
-
-            for lev in levels:
-                vprint(f"  → Extracting level {lev} for {var} (via {curr_lev_dim})")
-                try:
-                    actual_var = next(
-                        (v for v in ds.data_vars if v.lower() == lmdz_var.lower()),
-                        next((v for v in ds.data_vars if curr_lev_dim in ds[v].dims and not v.endswith("_bnds")), list(ds.data_vars)[0])
-                    )
+                for lev in levels:
+                    vprint(f"  → Extracting level {lev} from {var}")
+                    ds = use.mask_dataset(ds_full, slice(cfg.lon_min, cfg.lon_max), slice(cfg.lat_min, cfg.lat_max))
+                    actual_var = next((v for v in ds.data_vars if v.lower() == lmdz_var.lower()), list(ds.data_vars)[0])
                     arr = ds[actual_var].sel({curr_lev_dim: lev}, method="nearest").squeeze()
-                except (ValueError, KeyError):
-                    vprint(f"    WARNING: Level {lev} selection failed for {var}")
+                    
+                    p_arr = _process_level_array(cfg, arr, var, lev, curr_time_dim, curr_lev_dim)
+                    if p_arr is not None: data_arrays.append(p_arr)
+                ds_full.close()
+            except Exception as e:
+                vprint(f"  ERROR: {e}")
+
+        else:
+            # Level-specific files
+            for lev in levels:
+                if cfg.src == "lmdz":
+                    filename = file_pattern.format(folder=base_dir.rstrip("/"), lmdz_var=lmdz_var, suffix=suffix, level=lev, lev=lev)
+                else:
+                    filename = file_pattern.format(var=var.lower(), level=lev, lev=lev)
+
+                vprint(f"Loading level file: {filename}...")
+                if not os.path.exists(filename):
+                    vprint(f"  → FILE NOT FOUND: {filename}")
                     continue
 
-                # ERA5 cleanup
-                if cfg.src == "era5":
-                    rename = {}
-                    if "latitude" in arr.dims:
-                        rename["latitude"] = "lat"
-                    if "longitude" in arr.dims:
-                        rename["longitude"] = "lon"
-                    if rename:
-                        arr = arr.rename(rename)
+                try:
+                    ds = xr.open_dataset(filename).squeeze()
+                    curr_time_dim = next((d for d in ["time_counter", "time"] if d in ds.dims), "time")
+                    curr_lev_dim = next((d for d in ["presnivs", "plev", "level"] if d in ds.dims), "level")
+                    
+                    ds = use.mask_dataset(ds, slice(cfg.lon_min, cfg.lon_max), slice(cfg.lat_min, cfg.lat_max))
+                    actual_var = next((v for v in ds.data_vars if v.lower() == lmdz_var.lower()), list(ds.data_vars)[0])
+                    arr = ds[actual_var].squeeze()
 
-                    if "level" in arr.dims:
-                        arr = arr.drop_vars("level", errors="ignore")
-                    if "level" in arr.coords:
-                        arr = arr.drop_vars("level", errors="ignore")
+                    p_arr = _process_level_array(cfg, arr, var, lev, curr_time_dim, curr_lev_dim)
+                    if p_arr is not None: data_arrays.append(p_arr)
+                    ds.close()
+                except Exception as e:
+                    vprint(f"  ERROR: {e}")
 
-                    for c in ["level", "number", "expver", "surface", "valid_time"]:
-                        if c in arr.coords:
-                            arr = arr.drop_vars(c, errors="ignore")
 
-                # Coordinate names
-                lat_name = 'lat' if 'lat' in arr.coords or 'lat' in arr.dims else 'latitude'
-                lon_name = 'lon' if 'lon' in arr.coords or 'lon' in arr.dims else 'longitude'
-                
-                rename_dict = {curr_time_dim: "time"}
-                if lat_name != "lat": rename_dict[lat_name] = "lat"
-                if lon_name != "lon": rename_dict[lon_name] = "lon"
-                arr = arr.rename(rename_dict)
-
-                # Explicitly drop the level coordinate to avoid MergeError during concat
-                if curr_lev_dim in arr.coords:
-                    arr = arr.drop_vars(curr_lev_dim)
-
-                arr = arr.transpose("time", "lat", "lon")
-                
-                # Subset dates explicitly using the detected dim for this file
-                time_slice = slice(
-                    min(cfg.start_date_train, cfg.start_date_test),
-                    max(cfg.end_date_train, cfg.end_date_test)
-                )
-                arr_sub = arr.sel({"time": time_slice})
-                
-                _print_basic_stats(arr_sub, f"{var}_{lev}", vprint)
-
-                arr_sub = arr_sub.expand_dims({"level": [f"{var}_{lev}"]})
-                data_arrays.append(arr_sub)
-
-        except Exception as e:
-            vprint(f"  ERROR: {e}")
 
     if not data_arrays:
         raise ValueError("No predictor files loaded")
 
     X = xr.concat(data_arrays, dim="level", coords="minimal")
     X = X.transpose("time", "level", "lat", "lon")
-
-    # Interpolate predictors to target resolution
-    from interpolation import interpolate_to_target_resolution
-    vprint(f"Interpolating predictors to {cfg.resolution} degree resolution using {cfg.interpolation_type} interpolation...")
-    X = interpolate_to_target_resolution(
-        X, 
-        resolution=cfg.resolution, 
-        method=cfg.interpolation_type,
-        bounds=(cfg.lon_min, cfg.lon_max, cfg.lat_min, cfg.lat_max) # Ensure consistent grid size
-    )
 
     if cfg.src == "era5":
         vprint("Checking time resolution...")
