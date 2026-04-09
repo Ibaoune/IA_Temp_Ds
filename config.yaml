@@ -41,25 +41,25 @@ region:
 dates:
   train:
     start: "1979-01-01"
-    end: "2014-12-31"
+    end: "1979-03-31"
   test:
     start: "2015-01-01"
-    end: "2020-12-31"
+    end: "2015-01-31"
 
 paths:
-  data_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/"
+  data_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/"
   results_dir: "results/"
-  shapefile_path: "/home/hassan/All data/Internship/Code/DS_intern/ma_shp/ma.shp"
-  era5_predictor_pattern: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/{var}_1979-2020_levels.nc"
+  shapefile_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/shapefiles/Morocco_shpfile/DA_REGIONS_12R.shp"
+  era5_predictor_pattern: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/era5ztquv/1979_2020/merged/{var}_1979-2020_levels.nc"
   lmdz_predictor_pattern: "{folder}/{lmdz_var}-{suffix}.nc"
 
 data:
   precip:
-    mswep_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/mswep_1979_2020.nc"
-    lmdz_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/precip-1979-2100.nc"
+    mswep_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/mswep/MSWP_1979_2020.nc"
+    lmdz_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/mswep/precip-1979-2100.nc"
   temp:
-    era5_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/mswt_1979_2020.nc"
-    lmdz_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/tas-1979-2100.nc"
+    era5_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/era5ztquv/1979_2020/var_perLev/mswt_1979_2020.nc"
+    lmdz_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/era5ztquv/1979_2020/var_perLev/tas-1979-2100.nc"
 
 mappings:
   lmdz_var_map:
@@ -70,7 +70,7 @@ mappings:
     t: "temp"
 
 prediction:
-  bc_reference_folder: "/home/hassan/All data/Internship/Code/LMDZ 250/present/"
+  bc_reference_folder: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/LMDZ 250/present/"
   scenarios: 
     - name: "era5_to_mswep"
       src: "era5"
@@ -82,19 +82,19 @@ prediction:
       start: "1979-01-01"
       end: "1983-12-31" 
       bias_correction: true
-      folder: "/home/hassan/All data/Internship/Code/LMDZ 250/present/"
+      folder: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/LMDZ 250/present/"
     - name: "lmdz_250_ssp245"
       src: "lmdz"
       start: "2015-01-01"
       end: "2020-12-31"
       bias_correction: true
-      folder: "/home/hassan/All data/Internship/Code/LMDZ 250/ssp245/"
+      folder: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/LMDZ 250/ssp245/"
     - name: "lmdz_250_ssp585"
       src: "lmdz"
       start: "2015-01-01"
       end: "2020-12-31"
       bias_correction: true
-      folder: "/home/hassan/All data/Internship/Code/LMDZ 250/ssp585/"
+      folder: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/LMDZ 250/ssp585/"
 
 # Plot settings
 plots:

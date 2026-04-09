@@ -18,8 +18,9 @@ validation="yes"    # yes= activate validtion flag / no= deactivate validation f
 
 
 # Activate Conda environment
-source /home/hassan/anaconda3/etc/profile.d/conda.sh
-conda activate env_torch
+#source /home/hassan/anaconda3/etc/profile.d/conda.sh
+#conda activate env_torch
+conda activate clean_env_Pytorch 
 
 # Record start time
 start_time=$(date +%s)
