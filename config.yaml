@@ -43,14 +43,14 @@ dates:
     start: "1979-01-01"
     end: "2014-12-31"
   test:
-    start: "2015-01-01"
-    end: "2020-12-31"
+    start: "1984-01-01"
+    end: "1985-12-31"
 
 paths:
   data_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/"
   results_dir: "results/"
   shapefile_path: "/home/hassan/All data/Internship/Code/DS_intern/ma_shp/ma.shp"
-  era5_predictor_pattern: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/{var}_1979-2020_levels.nc"
+  era5_predictor_pattern: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/var_perLev/{var}_{lev}_1979-2020.nc"
   lmdz_predictor_pattern: "{folder}/{lmdz_var}-{suffix}.nc"
 
 data:
