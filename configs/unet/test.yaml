@@ -1,0 +1,54 @@
+###########################################################
+# Script: training.py / train.py
+# Description: Main configuration for deep learning downscaling.
+# Input: ERA5 or LMDZ datasets (predictors), Precipitation or Temperature (targets).
+# Output: Trained models (.pth) and losses saved in results/exp_name/.
+###########################################################
+
+general:
+  verbose: true
+  experiment: "unet_precip_linear"
+  variable: "precip"  
+  target: "mswep"    
+  src: "era5"        
+  model_type: "unet" 
+  interpolation_type: "linear" 
+  variables: ["z", "q", "t", "u", "v"]
+  levels: [500, 700, 850]
+  resolution: 2.0
+
+training:
+  learning_rate: 1e-3
+  epochs: 2
+  batch_size: 64
+  loss_type: "bernoulli_gamma" 
+  norm_mode: "gridbox"         
+  early_stopping_max: 15
+
+vit:
+  emb_size: 128
+  patch_size: 4
+  num_layers: 4
+  num_heads: 4
+  dropout: 0.0
+
+region:
+  lon_min: -18
+  lon_max: 0
+  lat_min: 21
+  lat_max: 37
+
+dates:
+  train:
+    start: "1979-01-01"
+    end: "1979-12-31"
+  test:
+    start: "1984-01-01"
+    end: "1985-12-31"
+
+paths:
+  root_dir: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/"
+  results_dir: "results/"
+  shapefile_path: "ma_shp/ma.shp"
+  era5_predictor_pattern: "{var}_1979-2020_levels.nc"
+  mswep_path: "mswep_1979_2020.nc"

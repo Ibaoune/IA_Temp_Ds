@@ -24,18 +24,15 @@ conda activate env_torch
 # Record start time
 start_time=$(date +%s)
 
-# Run main script
-# stdout and stderr are automatically redirected to the SLURM output file
-#python3 -u train.py  # -u = unbuffered output for real-time logging
 
 if [[ "$train" == "yes" ]]; then
     echo "Running training..." >> log.txt
-    python3 -u train.py >> log.txt 2>&1
+    python3 -u train.py configs/unet/test.yaml >> log.txt 2>&1
 fi
 
 if [[ "$validation" == "yes" ]]; then
     echo "Running validation..." >> log.txt
-    python3 -u eval.py >> log.txt 2>&1
+    python3 -u eval.py configs/unet/test.yaml >> log.txt 2>&1
 fi
 
 if [[ "$train" != "yes" && "$validation" != "yes" ]]; then
