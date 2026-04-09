@@ -1,0 +1,110 @@
+###########################################################
+# Script: training.py / train.py
+# Description: Main configuration for deep learning downscaling.
+# Input: ERA5 or LMDZ datasets (predictors), Precipitation or Temperature (targets).
+# Output: Trained models (.pth) and losses saved in results/exp_name/.
+###########################################################
+
+general:
+  verbose: true
+  experiment: "vit_precip_linear"
+  variable: "precip"  
+  target: "mswep"    
+  src: "era5"        
+  model_type: "vit" # Options: "unet", "unet1", "cnn", "vit", "glm"
+  interpolation_type: "linear" 
+  variables: ["z", "q", "t", "u", "v"]
+  levels: [500, 700, 850]
+  resolution: 2.0
+
+training:
+  learning_rate: 1e-3
+  epochs: 10000
+  batch_size: 64
+  loss_type: "bernoulli_gamma" 
+  norm_mode: "gridbox"         
+  early_stopping_max: 15
+
+vit:
+  emb_size: 128
+  patch_size: 4
+  num_layers: 4
+  num_heads: 4
+  dropout: 0.0
+
+region:
+  lon_min: -18
+  lon_max: 0
+  lat_min: 21
+  lat_max: 36
+
+dates:
+  train:
+    start: "1979-01-01"
+    end: "2014-12-31"
+  test:
+    start: "1984-01-01"
+    end: "1985-12-31"
+
+paths:
+  data_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/"
+  results_dir: "results/"
+  shapefile_path: "/home/hassan/All data/Internship/Code/DS_intern/ma_shp/ma.shp"
+  era5_predictor_pattern: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/var_perLev/{var}_{lev}_1979-2020.nc"
+  lmdz_predictor_pattern: "{folder}/{lmdz_var}-{suffix}.nc"
+
+data:
+  precip:
+    mswep_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/mswep_1979_2020.nc"
+    lmdz_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/precip-1979-2100.nc"
+  temp:
+    era5_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/mswt_1979_2020.nc"
+    lmdz_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/tas-1979-2100.nc"
+
+mappings:
+  lmdz_var_map:
+    z: "geop"
+    q: "rhum"
+    u: "vitu"
+    v: "vitv"
+    t: "temp"
+
+prediction:
+  bc_reference_folder: "/home/hassan/All data/Internship/Code/LMDZ 250/present/"
+  scenarios: 
+    - name: "era5_to_mswep"
+      src: "era5"
+      start: "1984-01-01"
+      end: "1984-12-31"
+      bias_correction: false
+    - name: "lmdz_250_present"
+      src: "lmdz"
+      start: "1979-01-01"
+      end: "1983-12-31" 
+      bias_correction: true
+      folder: "/home/hassan/All data/Internship/Code/LMDZ 250/present/"
+    - name: "lmdz_250_ssp245"
+      src: "lmdz"
+      start: "2015-01-01"
+      end: "2020-12-31"
+      bias_correction: true
+      folder: "/home/hassan/All data/Internship/Code/LMDZ 250/ssp245/"
+    - name: "lmdz_250_ssp585"
+      src: "lmdz"
+      start: "2015-01-01"
+      end: "2020-12-31"
+      bias_correction: true
+      folder: "/home/hassan/All data/Internship/Code/LMDZ 250/ssp585/"
+
+# Plot settings
+plots:
+  mswep_color: "blue"
+  unet_color: "orange"
+  rmse_max: 10
+  r2_max: 1.0
+  pearson_max: 1.0
+
+# Evaluation settings
+evaluation:
+  metrics: ["bias", "rmse", "correlation", "cdd", "r95"]
+  precip_threshold: 1.0
