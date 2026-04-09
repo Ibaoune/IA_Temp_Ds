@@ -98,10 +98,18 @@ class Config:
         # Paths & Patterns
         # ----------------------
         paths = cfg_dict["paths"]
-        self.data_path = str(paths["data_path"])
-        self.results_dir = str(paths.get("results_dir", "results/"))
-        self.shapefile_path = str(paths.get("shapefile_path", ""))
+        self.root_dir = str(paths.get("root_dir", ""))
+        
+        # Build absolute paths using root_dir if provided
+        self.data_path = os.path.join(self.root_dir, str(paths.get("data_path", "")))
+        self.results_dir = os.path.join(self.root_dir, str(paths.get("results_dir", "results/")))
+        self.shapefile_path = os.path.join(self.root_dir, str(paths.get("shapefile_path", "")))
+        
+        # Patterns
         self.era5_predictor_pattern = str(paths.get("era5_predictor_pattern", ""))
+        if not os.path.isabs(self.era5_predictor_pattern) and self.root_dir:
+            self.era5_predictor_pattern = os.path.join(self.root_dir, self.era5_predictor_pattern)
+            
         self.lmdz_predictor_pattern = str(paths.get("lmdz_predictor_pattern", ""))
 
         # ----------------------
@@ -109,14 +117,19 @@ class Config:
         # ----------------------
         self.lmdz_var_map = cfg_dict.get("mappings", {}).get("lmdz_var_map", {})
 
-        # Variable specific paths
+        # Target Path (Support both old and new YAML structure)
         if self.variable == "precip":
-            self.target_path = str(cfg_dict.get("data",{}).get("precip", {}).get(f"{self.target}_path", ""))
+            # Check new structure first
+            self.target_path = str(paths.get(f"{self.target}_path", ""))
+            # Fallback to old structure
+            if not self.target_path:
+                self.target_path = str(cfg_dict.get("data",{}).get("precip", {}).get(f"{self.target}_path", ""))
         elif self.variable == "temp":
             var_target = "era5" if self.target == "mswt" else "lmdz"
             self.target_path = str(cfg_dict.get("data",{}).get("temp", {}).get(f"{var_target}_path", ""))
-        else:
-            raise ValueError(f"Unsupported variable: {self.variable}")
+        
+        if self.target_path and not os.path.isabs(self.target_path) and self.root_dir:
+            self.target_path = os.path.join(self.root_dir, self.target_path)
 
         # ----------------------
         # Prediction
@@ -135,7 +148,14 @@ class Config:
         # Evaluation
         # ----------------------
         self.evaluation = cfg_dict.get("evaluation", {})
-        self.mswep_path = cfg_dict.get("data", {}).get("precip", {}).get("mswep_path", "")
+        # Support both structures for MSWEP/MSWT paths
+        self.mswep_path = str(paths.get("mswep_path", ""))
+        if not self.mswep_path:
+             self.mswep_path = cfg_dict.get("data", {}).get("precip", {}).get("mswep_path", "")
+        
+        if self.mswep_path and not os.path.isabs(self.mswep_path) and self.root_dir:
+            self.mswep_path = os.path.join(self.root_dir, self.mswep_path)
+
         self.mswt_path = cfg_dict.get("data", {}).get("temp", {}).get("era5_path", "")
 
 

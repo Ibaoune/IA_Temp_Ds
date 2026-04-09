@@ -11,7 +11,7 @@ general:
   variable: "precip"  
   target: "mswep"    
   src: "era5"        
-  model_type: "glm" # Options: "unet", "unet1", "cnn", "vit", "glm"
+  model_type: "glm" 
   interpolation_type: "linear" 
   variables: ["z", "q", "t", "u", "v"]
   levels: [500, 700, 850]
@@ -19,7 +19,7 @@ general:
 
 training:
   learning_rate: 1e-3
-  epochs: 10000
+  epochs: 1000
   batch_size: 64
   loss_type: "bernoulli_gamma" 
   norm_mode: "gridbox"         
@@ -29,7 +29,7 @@ vit:
   emb_size: 128
   patch_size: 4
   num_layers: 4
-  num_heads: 4
+  num_heads: Head4
   dropout: 0.0
 
 region:
@@ -47,19 +47,19 @@ dates:
     end: "2020-12-31"
 
 paths:
-  data_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/"
+  root_dir: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/"
   results_dir: "results/"
-  shapefile_path: "/home/hassan/All data/Internship/Code/DS_intern/ma_shp/ma.shp"
-  era5_predictor_pattern: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/var_perLev/{var}_{lev}_1979-2020.nc"
-  lmdz_predictor_pattern: "{folder}/{lmdz_var}-{suffix}.nc"
+  shapefile_path: "ma_shp/ma.shp"
+  era5_predictor_pattern: "{var}_1979-2020_levels.nc"
+  mswep_path: "mswep_1979_2020.nc"
 
 data:
   precip:
-    mswep_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/mswep_1979_2020.nc"
-    lmdz_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/precip-1979-2100.nc"
+    mswep_path: "mswep_1979_2020.nc"
+    lmdz_path: "precip-1979-2100.nc"
   temp:
-    era5_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/mswt_1979_2020.nc"
-    lmdz_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/tas-1979-2100.nc"
+    era5_path: "mswt_1979_2020.nc"
+    lmdz_path: "tas-1979-2100.nc"
 
 mappings:
   lmdz_var_map:

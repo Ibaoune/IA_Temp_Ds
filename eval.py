@@ -21,7 +21,9 @@ from utils import vprint
 from utils import set_verbose
 
 def main():
-    cfg = load_config(train_mode=False, path="config.yaml")
+    import sys
+    cfg_path = sys.argv[1] if len(sys.argv) > 1 else "config.yaml"
+    cfg = load_config(train_mode=False, path=cfg_path)
     set_verbose(cfg.verbose)
     vprint("=== Starting evaluation process ===")
 
