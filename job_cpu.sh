@@ -11,7 +11,7 @@
 ########################################
 # USER SHOULD SET THESE TO yes OR no
 ########################################
-train="no"        # yes= activate training flag / no= deactivate training flag
+train="yes"        # yes= activate training flag / no= deactivate training flag
 validation="yes"    # yes= activate validtion flag / no= deactivate validation flag
 ########################################
 
@@ -28,12 +28,12 @@ start_time=$(date +%s)
 
 if [[ "$train" == "yes" ]]; then
     echo "Running training..." >> log.txt
-    python3 -u train.py configs/unet/test.yaml >> log.txt 2>&1
+    python3 -u train.py configs/unet/config.yaml >> log.txt 2>&1
 fi
 
 if [[ "$validation" == "yes" ]]; then
     echo "Running validation..." >> log.txt
-    python3 -u eval.py configs/unet/test.yaml >> log.txt 2>&1
+    python3 -u eval.py configs/unet/config.yaml >> log.txt 2>&1
 fi
 
 if [[ "$train" != "yes" && "$validation" != "yes" ]]; then

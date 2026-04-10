@@ -13,6 +13,7 @@
 """
 
 import torch
+import sys
 from torch import nn, optim
 from torch.utils.data import DataLoader, TensorDataset
 from utils import vprint, get_machine_features, estimate_total_time
@@ -108,7 +109,13 @@ def train_model(cfg, x_train, y_train):
         raise ValueError(f"Unsupported loss type: {cfg.loss_type}")
 
     optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate)
-
+    
+    if x_train.shape[0] != y_train.shape[0]:
+        print("❌ Mismatch in number of samples!")
+        print("x_train samples:", x_train.shape[0])
+        print("y_train samples:", y_train.shape[0])
+    else:
+        print("✅ Same number of samples")
     # ----------------
     # DataLoader
     # ----------------
