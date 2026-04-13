@@ -102,7 +102,7 @@ class Config:
         
         # Build absolute paths using root_dir if provided
         self.data_path = os.path.join(self.root_dir, str(paths.get("data_path", "")))
-        self.results_dir = os.path.join(self.root_dir, str(paths.get("results_dir", "results/")))
+        self.results_dir = str(paths.get("results_dir", "results/"))
         self.shapefile_path = os.path.join(self.root_dir, str(paths.get("shapefile_path", "")))
         
         # Patterns
