@@ -46,6 +46,10 @@ dates:
     start: "1981-01-01"
     end: "1981-12-31"
 
+plots:
+  eval:
+    show_suffix_components_in_title: true
+
 paths:
   root_dir: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data"
   results_dir: "/srv/data/mohammad.elaabaribao/work/interns/y2026/code/era5Tomswep/results/"

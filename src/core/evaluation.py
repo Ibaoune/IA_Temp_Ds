@@ -142,6 +142,41 @@ def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
 
     vprint("Generating plots...")
 
+    plot_title_suffix = (
+    use.format_components_for_title(
+        # data
+        src=cfg.src,
+        target=cfg.target,
+        variable=cfg.variable,
+
+        # experiment
+        experiment=cfg.experiment,
+        model_type=cfg.model_type,
+        interpolation_type=cfg.interpolation_type,
+
+        # training config
+        norm_mode=cfg.norm_mode,
+        loss_type=cfg.loss_type,
+        learning_rate=cfg.learning_rate,
+        batch_size=cfg.batch_size,
+        epochs=cfg.epochs,
+
+        # training behavior
+        early_stopping_max=cfg.early_stopping_max,
+
+        # spatial / input config
+        variables=cfg.variables,
+        levels=cfg.levels,
+        resolution=cfg.resolution,
+
+        # dates
+        train_start=cfg.start_date_train,
+        train_end=cfg.end_date_train,
+        test_start=cfg.start_date_test,
+        test_end=cfg.end_date_test,
+    )
+    if cfg.show_suffix_components_in_title else "")
+
     use.plot_losses(
         train_losses,
         val_losses,
@@ -158,7 +193,7 @@ def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
         lat,
         model_name=cfg.model_type.upper(),
         filename=os.path.join(path_out_figs, "spatial_distribution.png"),
-        title_suffix=" (ERA5→MSWEP)",
+        title_suffix=plot_title_suffix,
         y_name="MSWEP",
         y_var="precip",
         model_var="precipitation",
@@ -173,7 +208,7 @@ def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
         y_var="precip",
         model_var="precipitation",
         title="Monthly Average Precipitation (mm/day)",
-        title_suffix=" (ERA5→MSWEP)",
+        title_suffix=plot_title_suffix,
     )
 
     vprint(f"All evaluation outputs saved in: {exp_path}")

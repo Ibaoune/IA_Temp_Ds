@@ -183,11 +183,15 @@ def spatial_comparaison_plot(
         )
 
     fig.suptitle(
-        "Spatial Distribution of Daily Average Precipitation (mm/day)",
-        fontsize=16, weight="bold", y=1.08
+    "Spatial Distribution of Daily Average Precipitation (mm/day)",
+    fontsize=6, weight="bold", y=0.96
     )
-    fig.text(0.5, 0.98, title_suffix, ha="center", va="top",
-             fontsize=10, style="italic")
+    fig.text(
+        0.5, 0.90, title_suffix,
+        ha="center", va="top",
+        fontsize=6, style="italic"
+    )
+    plt.tight_layout(rect=[0, 0, 1, 0.88])
 
     cbar = plt.colorbar(img, ax=axs, label="Precipitation (mm/day)",
                         pad=0.1, shrink=0.8)
@@ -248,9 +252,10 @@ def monthly_precip_comparaison_plot(
     plt.plot(months, precip_y, marker="o", label=y_name)
 
     if title.strip():
-        plt.title(f"{title}\n{y_name} vs {model_name}", weight="bold")
+        plt.title(f"{title}\n{y_name} vs {model_name}", fontsize=6, pad=10)
     if title_suffix:
-        plt.suptitle(title_suffix, fontsize=7, style="italic", y=0.96)
+        plt.suptitle(title_suffix, fontsize=6, style="italic", y=0.98)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
 
     plt.xlabel("Month")
     plt.ylabel("Precipitation (mm/day)")
@@ -299,52 +304,54 @@ def plot_losses(
     vprint(f"  Loss plot saved to: {filename}")
 
 
-# Experiment Metadata Formatting
-def format_components_for_title(
-    start_date_train, end_date_train,
-    start_date_test, end_date_test,
-    norm_mode, loss_type,
-    early_stopping_mode, early_stopping_max,
-    use_lr_scheduler_mode, learning_rate,
-    lr_scheduler_factor, lr_scheduler_patience, lr_scheduler_min_lr,
-    emb_size, patch_size, num_layers, num_heads, dropout,
-    region_tag,
-):
+def format_components_for_title(**kwargs):
     """
-    Format experiment configuration into a multi-line title string.
+    Compact plot title formatter (max 4 lines)
+    Designed for evaluation plots.
     """
-    date_line = (
-        f"Train: {start_date_train} to {end_date_train} | "
-        f"Test: {start_date_test} to {end_date_test}"
-    )
+    def pick(*keys):
+        return {k: kwargs[k] for k in keys if k in kwargs and kwargs[k] is not None}
 
-    early_stopping_display = (
-        "Yes" if early_stopping_mode.upper() in ["ES-Y", "Y", "YES"] else "No"
-    )
-    lr_scheduler_display = (
-        "Yes" if use_lr_scheduler_mode.upper() in ["LR-Y", "Y", "YES"] else "No"
-    )
-
-    main_flags = (
-        f"Region: {region_tag}, Normalization: {norm_mode}, "
-        f"Loss: {loss_type}, Early Stopping: {early_stopping_display}, "
-        f"LR Scheduler: {lr_scheduler_display}"
-    )
-
-    lr_stop_line = (
-        f"Learning Rate: {learning_rate:.0e}, "
-        f"LR Factor: {lr_scheduler_factor}, "
-        f"LR Patience: {lr_scheduler_patience}, "
-        f"LR Min: {lr_scheduler_min_lr:.0e}, "
-        f"Early Stop Max: {early_stopping_max}"
-    )
-
-    vit_line = (
-        f"Embedding Size: {emb_size}, Patch Size: {patch_size}, "
-        f"Layers: {num_layers}, Heads: {num_heads}, Dropout: {dropout}"
-    )
-
-    return "\n".join([date_line, main_flags, lr_stop_line, vit_line])
+    def fmt(d):
+        return " | ".join(f"{k}: {v}" for k, v in d.items()) if d else None
+    # -------------------------
+    # LINE 1 — DATA + REGION (important context)
+    # -------------------------
+    line1 = fmt(pick(
+        "src", "target", "variable",
+        "variables", "levels", "resolution"
+    ))
+    # -------------------------
+    # LINE 2 — MODEL / EXPERIMENT
+    # -------------------------
+    line2 = fmt(pick(
+        "experiment", "model_type", "interpolation_type"
+    ))
+    # -------------------------
+    # LINE 3 — TRAINING CONFIG
+    # -------------------------
+    line3 = fmt(pick(
+        "norm_mode", "loss_type",
+        "learning_rate", "batch_size", "epochs",
+        "early_stopping_max"
+    ))
+    # -------------------------
+    # LINE 4 — TEMPORAL CONTEXT
+    # -------------------------
+    line4 = None
+    if all(k in kwargs for k in [
+        "train_start", "train_end",
+        "test_start", "test_end"
+    ]):
+        line4 = (
+            f"Train: {kwargs['train_start']} → {kwargs['train_end']} | "
+            f"Test: {kwargs['test_start']} → {kwargs['test_end']}"
+        )
+    lines = [line1, line2, line3, line4]
+    # remove empty
+    lines = [l for l in lines if l]
+    # hard limit = 4 lines
+    return "\n".join(lines[:4])
 
 
 # Experiment Path & Model IO

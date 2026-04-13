@@ -158,6 +158,16 @@ class Config:
 
         self.mswt_path = cfg_dict.get("data", {}).get("temp", {}).get("era5_path", "")
 
+        # ----------------------
+        # Plots
+        # ----------------------
+        plots = cfg_dict.get("plots", {})
+        eval_plots = plots.get("eval", {})
+
+        self.show_suffix_components_in_title = _to_bool(
+            eval_plots.get("show_suffix_components_in_title", False)
+        )
+
 
 # YAML loader
 def load_config(train_mode=True, path="config.yaml"):
