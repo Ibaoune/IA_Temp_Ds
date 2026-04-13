@@ -19,7 +19,7 @@ general:
 
 training:
   learning_rate: 1e-3
-  epochs: 1000
+  epochs: 100
   batch_size: 64
   loss_type: "bernoulli_gamma" 
   norm_mode: "gridbox"         
@@ -40,15 +40,15 @@ region:
 
 dates:
   train:
-    start: "1979-01-01"
+    start: "1980-01-01"
     end: "2005-12-31"
   test:
     start: "2006-01-01"
     end: "2020-12-31"
 
 paths:
-  root_dir: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/"
+  root_dir: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/"
   results_dir: "results/"
-  shapefile_path: "ma_shp/ma.shp"
-  era5_predictor_pattern: "{var}_1979-2020_levels.nc"
-  mswep_path: "mswep_1979_2020.nc"
+  shapefile_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/shapefiles/Morocco_shpfile/DA_REGIONS_12R.shp"
+  era5_predictor_pattern: "era5ztquv/1979_2020/merged/{var}_1979-2020_levels.nc"
+  mswep_path: "mswep/mswep_1979_2020.nc"

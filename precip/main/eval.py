@@ -12,13 +12,12 @@
 ==========================================================
 """
 
-from config import load_config
-from data_loading import load_datasets
-from preprocessing import preprocess_data
-from evaluation import evaluate_and_save
-from utils import vprint
+from  src.core.config import load_config 
+from src.data.data_loading import load_datasets
+from src.data.preprocessing import preprocess_data
+from src.core.evaluation import evaluate_and_save
+from src.core.utils import vprint, set_verbose
 
-from utils import set_verbose
 
 def main():
     import sys

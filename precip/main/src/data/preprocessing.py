@@ -18,7 +18,7 @@ import numpy as np
 import torch
 from sklearn.preprocessing import StandardScaler
 
-from utils import vprint
+from src.core.utils import vprint
 
 def _print_stats(label, arr, units=None):
     if arr is None:

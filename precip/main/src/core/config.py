@@ -102,7 +102,7 @@ class Config:
         
         # Build absolute paths using root_dir if provided
         self.data_path = os.path.join(self.root_dir, str(paths.get("data_path", "")))
-        self.results_dir = os.path.join(self.root_dir, str(paths.get("results_dir", "results/")))
+        self.results_dir = str(paths.get("results_dir", "results/"))
         self.shapefile_path = os.path.join(self.root_dir, str(paths.get("shapefile_path", "")))
         
         # Patterns
@@ -157,6 +157,16 @@ class Config:
             self.mswep_path = os.path.join(self.root_dir, self.mswep_path)
 
         self.mswt_path = cfg_dict.get("data", {}).get("temp", {}).get("era5_path", "")
+
+        # ----------------------
+        # Plots
+        # ----------------------
+        plots = cfg_dict.get("plots", {})
+        eval_plots = plots.get("eval", {})
+
+        self.show_suffix_components_in_title = _to_bool(
+            eval_plots.get("show_suffix_components_in_title", False)
+        )
 
 
 # YAML loader
