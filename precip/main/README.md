@@ -1,20 +1,25 @@
-Voici un **README complet prêt à copier-coller dans un fichier `.txt`** :
 
 ---
 
-# Downscaling Project: Deep Learning for Temperature and Precipitation (DS Intern)
+# Downscaling Project: Deep Learning for Precipitation (DS Intern)
 
-This project implements a modular and extensible deep learning pipeline for climate data downscaling over Morocco. It supports multiple model architectures (U-Net, CNN, and GLM) to generate high-resolution precipitation (MSWEP) and temperature (MSWT) from coarse-resolution datasets such as ERA5 and LMDZ.
+This project implements a modular and extensible deep learning pipeline for climate precipitation downscaling over Morocco. It focuses exclusively on **precipitation** and supports multiple model architectures (U-Net, CNN, GLM) to generate high-resolution precipitation fields (~10 km, MSWEP-like resolution) from coarse-resolution climate data such as ERA5 and GCM outputs.
 
 ---
 
 ## 1. Project Overview
 
-Climate downscaling aims to transform coarse-resolution climate data into finer spatial resolution outputs. This project provides:
+Precipitation downscaling aims to transform coarse-resolution climate data into fine-scale spatial precipitation estimates.
 
-* Deep learning models for spatial downscaling
-* Statistical baseline (GLM)
-* Support for multiple climate scenarios (ERA5, HIST, SSP245, SSP585)
+This project provides:
+
+* Deep learning models for spatial precipitation downscaling
+* A statistical baseline (GLM)
+* A two-step training strategy:
+
+  1. Pretraining on ERA5 → MSWEP
+  2. Application to GCM → MSWEP (future climate scenarios)
+* Support for multiple scenarios (ERA5, HIST, SSP245, SSP585)
 * End-to-end pipeline: data loading → preprocessing → training → evaluation
 
 ---
@@ -51,8 +56,8 @@ configs/
 
 Each YAML configuration file typically includes:
 
-* `variable`: `temp` or `precip`
-* `model_type`: `unet`, `cnn`,  `glm`
+* `variable`: always `precip` (precipitation only)
+* `model_type`: `unet`, `cnn`, `glm`
 * `scenario`: ERA5, HIST, SSP245, SSP585
 * `training parameters`: batch size, learning rate, epochs, etc.
 * `data paths`: input/output dataset locations
@@ -69,7 +74,7 @@ src/core/config.py
 
 ### 4.1 Models (`src/models/`)
 
-* `unet_arch.py`: U-Net architecture for spatial prediction
+* `unet_arch.py`: U-Net architecture for spatial precipitation prediction
 * `cnn.py`: Convolutional neural network baseline
 * `glm.py`: Generalized Linear Model (statistical baseline)
 
@@ -77,7 +82,7 @@ src/core/config.py
 
 ### 4.2 Data Processing (`src/data/`)
 
-* `data_loading.py`: Loads NetCDF datasets (ERA5, LMDZ, MSWEP/MSWT)
+* `data_loading.py`: Loads NetCDF datasets (ERA5, GCM, MSWEP)
 * `preprocessing.py`: Data normalization and tensor preparation
 * `interpolation.py`: Spatial interpolation between grids
 
@@ -87,10 +92,9 @@ src/core/config.py
 
 * `training.py`: Training loop and validation logic
 * `evaluation.py`: Metrics computation and result generation
-* `losses.py`: Custom loss functions:
+* `losses.py`: Custom loss functions for precipitation:
 
-  * Gaussian loss (temperature)
-  * Bernoulli-Gamma loss (precipitation)
+  * Bernoulli–Gamma loss (rain occurrence + intensity)
 * `utils.py`: Utilities (logging, saving, directory management)
 * `config.py`: YAML configuration parser
 
@@ -100,12 +104,12 @@ src/core/config.py
 
 This project requires external datasets (not included in the repository):
 
-* ERA5 reanalysis data
-* MSWEP (precipitation) / MSWT (temperature)
-* LMDZ model outputs
+* ERA5 reanalysis data (pretraining phase)
+* GCM outputs (historical + future scenarios)
+* MSWEP precipitation (target high-resolution product)
 * Morocco shapefile (for spatial masking)
 
-Ensure all dataset paths are correctly specified in the configuration files.
+Ensure all dataset paths are correctly specified in configuration files.
 
 ---
 
@@ -117,15 +121,19 @@ Activate your Python environment:
 conda activate clean_env_Pytorch
 ```
 
-Make sure required libraries are installed (PyTorch, NumPy, xarray, etc.).
+Install required dependencies:
+
+* PyTorch
+* NumPy
+* xarray
+* netCDF4
+* pandas
 
 ---
 
 ## 7. Usage
 
-### 7.1 Training
-
-Run training with a selected configuration:
+### 7.1 Training (ERA5 → MSWEP pretraining)
 
 ```
 python train.py configs/unet/config.yaml
@@ -165,8 +173,8 @@ All outputs are stored in the `results/` directory:
 
 * Trained models (checkpoints)
 * Logs (training progress)
-* Predictions
-* Evaluation metrics (possibly NetCDF format)
+* High-resolution precipitation predictions (~10 km)
+* Evaluation metrics (NetCDF or CSV format)
 
 ---
 
@@ -180,7 +188,7 @@ All outputs are stored in the `results/` directory:
 src/models/
 ```
 
-2. Register or integrate it in the training pipeline
+2. Integrate it into the training pipeline
 
 3. Create a new configuration:
 
@@ -201,9 +209,11 @@ configs/<your_model>/
 ## 10. Features
 
 * Modular architecture
-* Multi-model support (DL + statistical)
+* Multi-model support (DL + statistical baseline)
+* Pretraining strategy (ERA5 → MSWEP)
+* GCM downscaling capability to ~10 km resolution
 * Flexible configuration system
-* Custom loss functions for climate variables
+* Custom precipitation loss functions
 * HPC-ready (SLURM support)
 * NetCDF-compatible outputs
 
@@ -211,9 +221,7 @@ configs/<your_model>/
 
 ## 11. Notes
 
-* The pipeline is designed to be model-agnostic and easily extendable.
-* Evaluation outputs can be used directly with climate analysis tools.
-* Proper preprocessing and normalization are critical for model performance.
-
----
-
+* The pipeline is designed specifically for **precipitation downscaling**
+* Target resolution: **~10 km (MSWEP-like grid)**
+* Pretraining on ERA5 improves generalization before applying to GCM scenarios
+* Proper preprocessing and bias correction are critical for performance
