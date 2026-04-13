@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=emul_cpu        # Job Name
-#SBATCH --output=out_%j.log        # Everything (stdout & stderr) goes here
-#SBATCH --error=out_%j.log         # Can also merge stderr with stdout
+#SBATCH --job-name=emul_cpu
+#SBATCH --output=out_%j.log
+#SBATCH --error=out_%j.log
 #SBATCH --nodes=1
 #SBATCH --time=24:00:00
 #SBATCH --mem=128G
@@ -11,39 +11,45 @@
 ########################################
 # USER SHOULD SET THESE TO yes OR no
 ########################################
-train="yes"        # yes= activate training flag / no= deactivate training flag
-validation="yes"    # yes= activate validtion flag / no= deactivate validation flag
+train="yes"
+validation="yes"
 ########################################
 
-
-
 # Activate Conda environment
-#source /home/hassan/anaconda3/etc/profile.d/conda.sh
-#conda activate env_torch
-conda activate clean_env_Pytorch 
+conda activate clean_env_Pytorch
+
+# Ensure Python logs are flushed immediately
+export PYTHONUNBUFFERED=1
 
 # Record start time
 start_time=$(date +%s)
 
+echo "======================================"
+echo "Job ID: $SLURM_JOB_ID"
+echo "Start time: $(date)"
+echo "Train: $train | Validation: $validation"
+echo "======================================"
 
 if [[ "$train" == "yes" ]]; then
-    echo "Running training..." >> log.txt
-    python3 -u train.py configs/unet/config.yaml >> log.txt 2>&1
+    echo "[INFO] Running training..."
+    python3 -u ../train.py ../configs/unet/test.yaml
 fi
 
 if [[ "$validation" == "yes" ]]; then
-    echo "Running validation..." >> log.txt
-    python3 -u eval.py configs/unet/config.yaml >> log.txt 2>&1
+    echo "[INFO] Running validation..."
+    python3 -u ../eval.py ../configs/unet/test.yaml
 fi
 
 if [[ "$train" != "yes" && "$validation" != "yes" ]]; then
-    echo "Neither training nor validation selected. Set train=\"yes\" and/or validation=\"yes\"." >> log.txt
+    echo "[WARNING] Neither training nor validation selected."
+    echo "Set train=\"yes\" and/or validation=\"yes\"."
 fi
 
-
-
-# Record end time and log total runtime
+# Record end time
 end_time=$(date +%s)
 runtime=$((end_time - start_time))
-echo "Job ${SLURM_JOB_ID} completed in $runtime seconds."
 
+echo "======================================"
+echo "Job ${SLURM_JOB_ID} completed in $runtime seconds."
+echo "End time: $(date)"
+echo "======================================"

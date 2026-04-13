@@ -48,7 +48,7 @@ dates:
 
 paths:
   root_dir: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data"
-  results_dir: "results/"
+  results_dir: "/srv/data/mohammad.elaabaribao/work/interns/y2026/code/era5Tomswep/results/"
   shapefile_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/shapefiles/Morocco_shpfile/DA_REGIONS_12R.shp"
   era5_predictor_pattern: "{var}_1979-2020_levels.nc"
   mswep_path: "mswep_1979_2020.nc"
