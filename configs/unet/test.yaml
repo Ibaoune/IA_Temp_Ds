@@ -40,15 +40,15 @@ region:
 
 dates:
   train:
-    start: "1980-01-01"
-    end: "1983-12-31"
+    start: "1979-01-01"
+    end: "1980-12-31"
   test:
-    start: "1984-01-01"
-    end: "1985-12-31"
+    start: "1981-01-01"
+    end: "1981-12-31"
 
 paths:
-  root_dir: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/"
+  root_dir: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data"
   results_dir: "results/"
   shapefile_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/shapefiles/Morocco_shpfile/DA_REGIONS_12R.shp"
-  era5_predictor_pattern: "era5ztquv/1979_2020/merged/{var}_1979-2020_levels.nc"
-  mswep_path: "mswep/mswep_1979_2020.nc"
+  era5_predictor_pattern: "{var}_1979-2020_levels.nc"
+  mswep_path: "mswep_1979_2020.nc"
