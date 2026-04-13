@@ -16,7 +16,7 @@ import torch
 import sys
 from torch import nn, optim
 from torch.utils.data import DataLoader, TensorDataset
-from utils import vprint, get_machine_features, estimate_total_time
+from src.core.utils import vprint, get_machine_features, estimate_total_time
 import time
 
 
@@ -45,7 +45,7 @@ def _build_model(cfg, x_train, y_train):
             n_lon_out=y_train.shape[-1],
         )
     elif cfg.model_type == "unet":
-        from unet_arch import UNet
+        from src.models.unet_arch import UNet
         import torch.nn as nn
         import torch.nn.functional as F
         class WrappedUNet(nn.Module):
@@ -60,7 +60,7 @@ def _build_model(cfg, x_train, y_train):
                 return out
         return WrappedUNet()
     elif cfg.model_type == "unet1":
-        from unet_arch1 import UNet as UNet1
+        from src.models.unet_arch1 import UNet as UNet1
         import torch.nn as nn
         import torch.nn.functional as F
         class WrappedUNet1(nn.Module):
@@ -75,7 +75,7 @@ def _build_model(cfg, x_train, y_train):
                 return out
         return WrappedUNet1()
     elif cfg.model_type == "cnn":
-        from cnn import CNN
+        from src.models.cnn import CNN
         return CNN(
             input_shape=(x_train.shape[1], x_train.shape[2], x_train.shape[3]),
             out_channels=out_channels,
@@ -89,7 +89,7 @@ def train_model(cfg, x_train, y_train):
     vprint("Initializing model for training...")
 
     if cfg.model_type == "glm":
-        from glm import train_glm
+        from src.models.glm import train_glm
         return train_glm(cfg, x_train, y_train)
 
     model = _build_model(cfg, x_train, y_train).to(cfg.device)
@@ -100,10 +100,10 @@ def train_model(cfg, x_train, y_train):
     if cfg.loss_type == "mse":
         criterion = nn.MSELoss()
     elif cfg.loss_type == "bernoulli_gamma":
-        from losses import BernoulliGammaLoss
+        from src.core.losses import BernoulliGammaLoss
         criterion = BernoulliGammaLoss()
     elif cfg.loss_type == "gaussian":
-        from losses import GaussianLoss
+        from src.core.losses import GaussianLoss
         criterion = GaussianLoss()
     else:
         raise ValueError(f"Unsupported loss type: {cfg.loss_type}")

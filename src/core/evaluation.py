@@ -21,8 +21,8 @@ import torch
 import xarray as xr
 import numpy as np
 
-import utils as use
-from utils import vprint, load_model
+import src.core.utils as use
+from src.core.utils import vprint, load_model
 
 def _build_model(cfg, x_test, y_test):
     if cfg.model_type == "vit":
@@ -39,7 +39,7 @@ def _build_model(cfg, x_test, y_test):
             n_lon_out=y_test.shape[-1],
         )
     elif cfg.model_type == "unet":
-        from unet_arch import UNet
+        from src.models.unet_arch import UNet
         import torch.nn as nn
         import torch.nn.functional as F
         class WrappedUNet(nn.Module):
@@ -55,7 +55,7 @@ def _build_model(cfg, x_test, y_test):
                 return out
         return WrappedUNet()
     elif cfg.model_type == "unet1":
-        from unet_arch1 import UNet as UNet1
+        from src.models.unet_arch1 import UNet as UNet1
         import torch.nn as nn
         import torch.nn.functional as F
         class WrappedUNet1(nn.Module):

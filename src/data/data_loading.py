@@ -23,9 +23,9 @@ import numpy as np
 import xarray as xr
 import torch
 
-import utils as use
-from utils import vprint
-
+from src.core import utils as use
+from src.core.utils import vprint
+from src.data.interpolation import interpolate_to_target_resolution
 # -------------------------------------
 #              Helpers
 # -------------------------------------
@@ -126,7 +126,7 @@ def _process_level_array(cfg, arr, var, lev, curr_time_dim, curr_lev_dim):
     arr_sub = arr.sel({"time": time_slice})
     
     # Interpolate
-    from interpolation import interpolate_to_target_resolution
+    
     arr_sub = interpolate_to_target_resolution(
         arr_sub, 
         resolution=cfg.resolution, 

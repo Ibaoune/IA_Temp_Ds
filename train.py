@@ -19,11 +19,11 @@ import torch
 import sys
 import os
 
-from config import load_config
-from data_loading import load_datasets
-from preprocessing import preprocess_data
-from training import train_model
-from utils import vprint, save_model, set_verbose
+from  src.core.config import load_config 
+from src.data.data_loading import load_datasets
+from src.data.preprocessing import preprocess_data
+from src.core.training import train_model
+from src.core.utils import vprint, save_model, set_verbose
 
 def main():
     # ----------------
