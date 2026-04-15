@@ -112,12 +112,32 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
     # DataLoader
     # ----------------
     dataset = TensorDataset(x_train, y_train)
-    train_loader = DataLoader(
+
+    n_total = len(dataset)
+    n_val = max(1, int(cfg.validation_split * n_total))
+    n_train = n_total - n_val
+
+    generator = torch.Generator().manual_seed(cfg.seed)
+    train_dataset, val_dataset = torch.utils.data.random_split(
         dataset,
+        [n_train, n_val],
+        generator=generator
+    )
+
+    train_loader = DataLoader(
+        train_dataset,
         batch_size=cfg.batch_size,
         shuffle=True,
         pin_memory=(cfg.device.type == "cuda"),
         drop_last=True,
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=cfg.batch_size,
+        shuffle=False,
+        pin_memory=(cfg.device.type == "cuda"),
+        drop_last=False,
     )
 
     train_losses = []
