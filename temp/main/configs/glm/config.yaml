@@ -1,0 +1,80 @@
+###########################################################
+# GLM configuration
+###########################################################
+
+general:
+  verbose: true
+  experiment: "glm_temperature"
+  variable: "temp"
+  target: "mswt"
+  src: "era5"
+  model_type: "glm"
+  interpolation_type: "linear"
+  variables: ["z", "q", "t", "u", "v"]
+  levels: [500, 700, 850, 1000]
+  resolution: 2.0
+
+training:
+  learning_rate: 1e-3
+  epochs: 50
+  batch_size: 4
+  loss_type: "gaussian"
+  norm_mode: "gridbox"
+  early_stopping_max: 15
+
+glm:
+  n_neighbors: 4 # or 1
+
+region:
+  lon_min: -18
+  lon_max: 0
+  lat_min: 21
+  lat_max: 36
+
+dates:
+  train:
+    start: "1984-01-01"
+    end: "1984-01-31"
+  test:
+    start: "2006-01-01"
+    end: "2006-01-15"
+
+paths:
+  root_dir: ""
+  data_path: "./DATA1"
+  results_dir: "./temp/results/"
+  shapefile_path: "./morocco_shapefile/morocco_unified_fixed_v2.shp"
+  era5_predictor_pattern: "./DATA1/predictors_era5/{var}_1979-2020_levels.nc"
+  lmdz_predictor_pattern: "{folder}/{lmdz_var}-{suffix}.nc"
+
+data:
+  precip:
+    mswep_path: "./DATA1/predictand_mswep/mswep_1979_2020.nc"
+    lmdz_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/precip-1979-2100.nc"
+  temp:
+    mswt_path: "./DATA1/predictand_mswet/mswt_1979_2020.nc"
+    lmdz_path: "/home/hassan/All data/Internship/Code/DS_intern/Dataset/tas-1979-2100.nc"
+
+mappings:
+  lmdz_var_map:
+    z: "geop"
+    q: "rhum"
+    u: "vitu"
+    v: "vitv"
+    t: "temp"
+
+prediction:
+  bc_reference_folder: "/home/hassan/All data/Internship/Code/LMDZ 250/present/"
+  scenarios:
+    - name: "era5_to_mswt"
+      src: "era5"
+      start: "1984-01-01"
+      end: "1984-12-31"
+      bias_correction: false
+
+plots:
+  eval:
+    show_suffix_components_in_title: true
+
+evaluation:
+  metrics: ["bias", "rmse", "correlation"]

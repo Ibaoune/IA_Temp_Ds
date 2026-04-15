@@ -1,0 +1,13 @@
+# Data and files to ignore
+DATA1/
+morocco_shapefile/
+results/
+climate_env/
+temp/results/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+log.txt
