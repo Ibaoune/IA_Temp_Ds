@@ -142,7 +142,7 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
 
     train_losses = []
     val_losses = []  # kept for compatibility
-    best_loss = float("inf")
+    best_val_loss = float("inf")
     patience = 0
     best_state_dict = None
 
@@ -193,18 +193,39 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
         if epoch == 0:
             estimated_time = estimate_total_time(epoch_duration, cfg.epochs)
             vprint(f"Estimated training process duration: {estimated_time}\n")
+        
+        # ----- validation -----
+        model.eval()
+        val_total_loss = 0.0
 
-        # ----------------
-        # Best model tracking + early stopping
-        # ----------------
-        if epoch_loss < best_loss:
-            best_loss = epoch_loss
+        with torch.no_grad():
+            for xb, yb in val_loader:
+                xb = xb.to(cfg.device, non_blocking=True)
+                yb = yb.to(cfg.device, non_blocking=True)
+
+                outputs = model(xb)
+                val_loss = criterion(outputs, yb)
+
+                val_total_loss += val_loss.item()
+
+        epoch_val_loss = val_total_loss / len(val_loader)
+        val_losses.append(epoch_val_loss)
+
+        vprint(
+            f"Epoch {epoch+1}/{cfg.epochs} - "
+            f"Train Loss: {epoch_loss:.4f} - Val Loss: {epoch_val_loss:.4f}"
+        )
+
+        scheduler.step(epoch_val_loss)
+
+        if epoch_val_loss < best_val_loss:
+            best_val_loss = epoch_val_loss
             patience = 0
             best_state_dict = {
                 k: v.detach().cpu().clone()
                 for k, v in model.state_dict().items()
             }
-            vprint(f" New best model at epoch {epoch+1} with loss={best_loss:.6f}")
+            vprint(f" New best model at epoch {epoch+1} with val_loss={best_val_loss:.6f}")
         else:
             patience += 1
             if patience >= cfg.early_stopping_max:
@@ -220,4 +241,4 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
 
     # model = last model
     # best_model = best model according to current criterion
-    return model, best_model, train_losses, val_losses, best_loss
+    return model, best_model, train_losses, val_losses, best_val_loss
