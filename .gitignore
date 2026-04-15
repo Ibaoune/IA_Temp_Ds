@@ -4,6 +4,7 @@ morocco_shapefile/
 results/
 climate_env/
 temp/results/
+temp/results_test/
 # Python
 __pycache__/
 *.py[cod]

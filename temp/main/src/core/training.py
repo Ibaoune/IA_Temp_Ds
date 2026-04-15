@@ -100,6 +100,14 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
 
     optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate)
 
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer,
+    mode="min",
+    factor=cfg.scheduler_factor,
+    patience=cfg.scheduler_patience,
+    min_lr=cfg.scheduler_min_lr,
+    )
+
     # ----------------
     # DataLoader
     # ----------------

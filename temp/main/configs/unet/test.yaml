@@ -39,7 +39,7 @@ dates:
 paths:
   root_dir: ""
   data_path: "./DATA1"
-  results_dir: "./temp/results/"
+  results_dir: "./temp/results_test/"
   shapefile_path: "./morocco_shapefile/morocco_unified_fixed_v2.shp"
   era5_predictor_pattern: "./DATA1/predictors_era5/{var}_1979-2020_levels.nc"
   lmdz_predictor_pattern: "{folder}/{lmdz_var}-{suffix}.nc"
