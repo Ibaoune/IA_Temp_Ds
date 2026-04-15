@@ -73,15 +73,6 @@ class Config:
         self.norm_mode = str(tr.get("norm_mode"))
         self.early_stopping_max = _to_int(tr.get("early_stopping_max"))
 
-        # validation
-        self.validation_split = _to_float(tr.get("validation_split", 0.05))
-        self.seed = _to_int(tr.get("seed", 42))
-
-        # scheduler
-        self.scheduler_factor = _to_float(tr.get("scheduler_factor", 0.5))
-        self.scheduler_patience = _to_int(tr.get("scheduler_patience", 3))
-        self.scheduler_min_lr = _to_float(tr.get("scheduler_min_lr", 1e-6))
-
         cnn_cfg = cfg_dict.get("cnn", {})
         self.cnn_mode = str(cnn_cfg.get("mode", "cnn10"))
 

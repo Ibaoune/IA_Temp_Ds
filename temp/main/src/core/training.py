@@ -100,49 +100,21 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
 
     optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate)
 
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer,
-    mode="min",
-    factor=cfg.scheduler_factor,
-    patience=cfg.scheduler_patience,
-    min_lr=cfg.scheduler_min_lr,
-    )
-
     # ----------------
     # DataLoader
     # ----------------
     dataset = TensorDataset(x_train, y_train)
-
-    n_total = len(dataset)
-    n_val = max(1, int(cfg.validation_split * n_total))
-    n_train = n_total - n_val
-
-    generator = torch.Generator().manual_seed(cfg.seed)
-    train_dataset, val_dataset = torch.utils.data.random_split(
-        dataset,
-        [n_train, n_val],
-        generator=generator
-    )
-
     train_loader = DataLoader(
-        train_dataset,
+        dataset,
         batch_size=cfg.batch_size,
         shuffle=True,
         pin_memory=(cfg.device.type == "cuda"),
         drop_last=True,
     )
 
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=cfg.batch_size,
-        shuffle=False,
-        pin_memory=(cfg.device.type == "cuda"),
-        drop_last=False,
-    )
-
     train_losses = []
     val_losses = []  # kept for compatibility
-    best_val_loss = float("inf")
+    best_loss = float("inf")
     patience = 0
     best_state_dict = None
 
@@ -193,39 +165,18 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
         if epoch == 0:
             estimated_time = estimate_total_time(epoch_duration, cfg.epochs)
             vprint(f"Estimated training process duration: {estimated_time}\n")
-        
-        # ----- validation -----
-        model.eval()
-        val_total_loss = 0.0
 
-        with torch.no_grad():
-            for xb, yb in val_loader:
-                xb = xb.to(cfg.device, non_blocking=True)
-                yb = yb.to(cfg.device, non_blocking=True)
-
-                outputs = model(xb)
-                val_loss = criterion(outputs, yb)
-
-                val_total_loss += val_loss.item()
-
-        epoch_val_loss = val_total_loss / len(val_loader)
-        val_losses.append(epoch_val_loss)
-
-        vprint(
-            f"Epoch {epoch+1}/{cfg.epochs} - "
-            f"Train Loss: {epoch_loss:.4f} - Val Loss: {epoch_val_loss:.4f}"
-        )
-
-        scheduler.step(epoch_val_loss)
-
-        if epoch_val_loss < best_val_loss:
-            best_val_loss = epoch_val_loss
+        # ----------------
+        # Best model tracking + early stopping
+        # ----------------
+        if epoch_loss < best_loss:
+            best_loss = epoch_loss
             patience = 0
             best_state_dict = {
                 k: v.detach().cpu().clone()
                 for k, v in model.state_dict().items()
             }
-            vprint(f" New best model at epoch {epoch+1} with val_loss={best_val_loss:.6f}")
+            vprint(f" New best model at epoch {epoch+1} with loss={best_loss:.6f}")
         else:
             patience += 1
             if patience >= cfg.early_stopping_max:
@@ -241,4 +192,4 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
 
     # model = last model
     # best_model = best model according to current criterion
-    return model, best_model, train_losses, val_losses, best_val_loss
+    return model, best_model, train_losses, val_losses, best_loss

@@ -22,13 +22,6 @@ training:
   norm_mode: "gridbox"
   early_stopping_max: 15
 
-  validation_split: 0.05
-  seed: 42
-
-  scheduler_factor: 0.5
-  scheduler_patience: 3
-  scheduler_min_lr: 1e-6
-
 region:
   lon_min: -18
   lon_max: 0
@@ -38,7 +31,7 @@ region:
 dates:
   train:
     start: "1984-01-01"
-    end: "1985-12-31"
+    end: "1984-12-31"
   test:
     start: "2006-01-01"
     end: "2006-12-31"
