@@ -43,13 +43,15 @@ def _build_model(cfg, x_test, y_test):
                 self.unet = UNet(
                     in_channels=x_test.shape[1],
                     out_channels=out_channels,
+                    base_filters=64,
+                    upscale_factor=1,
                 )
                 self.out_shape = (y_test.shape[-2], y_test.shape[-1])
 
             def forward(self, x):
                 out = self.unet(x)
                 if out.shape[-2:] != self.out_shape:
-                    out = F.interpolate(out, size=self.out_shape, mode="nearest")
+                    out = F.interpolate(out, size=self.out_shape,  mode="bilinear", align_corners=False)
                 return out
 
         return WrappedUNet()
@@ -67,12 +69,10 @@ def _build_model(cfg, x_test, y_test):
         )
 
     elif cfg.model_type == "glm":
-        # GLM models are loaded separately, not built here
         return None
 
     else:
         raise NotImplementedError(f"Model {cfg.model_type} not supported")
-
 
 def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
     vprint("=== Starting evaluation ===")

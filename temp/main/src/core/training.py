@@ -40,14 +40,16 @@ def _build_model(cfg, x_train, y_train):
                 super().__init__()
                 self.unet = UNet(
                     in_channels=x_train.shape[1],
-                    out_channels=out_channels
+                    out_channels=out_channels,
+                    base_filters=64,
+                    upscale_factor=1,
                 )
                 self.out_shape = (y_train.shape[-2], y_train.shape[-1])
 
             def forward(self, x):
                 out = self.unet(x)
                 if out.shape[-2:] != self.out_shape:
-                    out = F.interpolate(out, size=self.out_shape, mode="nearest")
+                    out = F.interpolate(out, size=self.out_shape,  mode="bilinear", align_corners=False)
                 return out
 
         return WrappedUNet()
@@ -64,7 +66,6 @@ def _build_model(cfg, x_train, y_train):
         )
     else:
         raise NotImplementedError(f"Model type {cfg.model_type} not supported yet")
-
 
 def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, lon_out=None):
     vprint("Initializing model for training...")

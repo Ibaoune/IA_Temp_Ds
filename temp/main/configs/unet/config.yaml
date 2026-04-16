@@ -16,7 +16,7 @@ general:
 
 training:
   learning_rate: 1e-3
-  epochs: 50
+  epochs: 100
   batch_size: 4
   loss_type: "gaussian"
   norm_mode: "gridbox"
@@ -30,11 +30,11 @@ region:
 
 dates:
   train:
-    start: "1984-01-01"
+    start: "1980-01-01"
     end: "1984-12-31"
   test:
-    start: "2006-01-01"
-    end: "2006-12-31"
+    start: "1985-01-01"
+    end: "1985-12-31"
 
 paths:
   root_dir: ""

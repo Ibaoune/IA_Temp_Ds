@@ -25,7 +25,7 @@ class UNet(nn.Module):
 
     def __init__(
         self,
-        in_channels=20,
+        in_channels=15,
         out_channels=2,
         base_filters=64,
         upscale_factor=1,
