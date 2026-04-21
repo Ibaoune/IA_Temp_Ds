@@ -199,34 +199,31 @@ def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
 
     vprint("Generating plots...")
 
-    plot_title_suffix = (
-        use.format_components_for_title(
-            src=cfg.src,
-            target=cfg.target,
-            variable=cfg.variable,
+    plot_title_suffix = use.format_components_for_title(
+        src=cfg.src,
+        target=cfg.target,
+        variable=cfg.variable,
 
-            experiment=cfg.experiment,
-            model_type=cfg.model_type,
-            interpolation_type=cfg.interpolation_type,
+        experiment=cfg.experiment,
+        model_type=cfg.model_type,
+        interpolation_type=cfg.interpolation_type,
 
-            norm_mode=cfg.norm_mode,
-            loss_type=cfg.loss_type,
-            learning_rate=cfg.learning_rate,
-            batch_size=cfg.batch_size,
-            epochs=cfg.epochs,
+        norm_mode=cfg.norm_mode,
+        loss_type=cfg.loss_type,
+        learning_rate=cfg.learning_rate,
+        batch_size=cfg.batch_size,
+        epochs=cfg.epochs,
 
-            early_stopping_max=cfg.early_stopping_max,
+        early_stopping_max=cfg.early_stopping_max,
 
-            variables=cfg.variables,
-            levels=cfg.levels,
-            resolution=cfg.resolution,
+        variables=cfg.variables,
+        levels=cfg.levels,
+        resolution=cfg.resolution,
 
-            train_start=cfg.start_date_train,
-            train_end=cfg.end_date_train,
-            test_start=cfg.start_date_test,
-            test_end=cfg.end_date_test,
-        )
-        if cfg.show_suffix_components_in_title else ""
+        train_start=cfg.start_date_train,
+        train_end=cfg.end_date_train,
+        test_start=cfg.start_date_test,
+        test_end=cfg.end_date_test,
     )
 
     if train_losses is not None and len(train_losses) > 0:

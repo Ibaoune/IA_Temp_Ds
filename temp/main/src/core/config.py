@@ -102,9 +102,13 @@ class Config:
         paths = cfg_dict["paths"]
         self.root_dir = str(paths.get("root_dir", ""))
 
-        self.data_path = os.path.join(self.root_dir, str(paths.get("data_path", "")))
+        data_path_raw = str(paths.get("data_path", ""))
+        self.data_path = os.path.join(self.root_dir, data_path_raw) if self.root_dir and data_path_raw else data_path_raw
+        
         self.results_dir = str(paths.get("results_dir", "results/"))
-        self.shapefile_path = os.path.join(self.root_dir, str(paths.get("shapefile_path", "")))
+        
+        shapefile_path_raw = str(paths.get("shapefile_path", ""))
+        self.shapefile_path = os.path.join(self.root_dir, shapefile_path_raw) if self.root_dir and shapefile_path_raw else shapefile_path_raw
 
         self.era5_predictor_pattern = str(paths.get("era5_predictor_pattern", ""))
         if not os.path.isabs(self.era5_predictor_pattern) and self.root_dir:
@@ -128,7 +132,12 @@ class Config:
             temp_cfg = cfg_dict.get("data", {}).get("temp", {})
 
             if self.target == "mswt":
-                self.target_path = str(paths.get("mswt_path", temp_cfg.get("mswt_path", "")))
+                self.target_path = str(
+                    paths.get(
+                        "mswt_path",
+                        temp_cfg.get("mswt_path", temp_cfg.get("mswet_path", ""))
+                    )
+                )
             elif self.target == "lmdz":
                 self.target_path = str(paths.get("lmdz_path", temp_cfg.get("lmdz_path", "")))
             else:
@@ -157,8 +166,9 @@ class Config:
         # Evaluation
         # ----------------------
         self.evaluation = cfg_dict.get("evaluation", {})
-        self.mswep_path = cfg_dict.get("data", {}).get("precip", {}).get("mswep_path", "")
-        self.mswt_path = cfg_dict.get("data", {}).get("temp", {}).get("mswet_path", "")
+        # Support both paths section (test.yaml style) and data section (config.yaml style)
+        self.mswep_path = str(paths.get("mswep_path", cfg_dict.get("data", {}).get("precip", {}).get("mswep_path", "")))
+        self.mswt_path = str(paths.get("mswt_path", cfg_dict.get("data", {}).get("temp", {}).get("mswet_path", "")))
 
         #----------------------
         # Plots

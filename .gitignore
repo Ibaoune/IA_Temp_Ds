@@ -5,6 +5,8 @@ results/
 climate_env/
 temp/results/
 temp/results_test/
+temp/exploration/
+temp/postproc/
 # Python
 __pycache__/
 *.py[cod]
