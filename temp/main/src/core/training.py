@@ -82,7 +82,8 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
 
     if cfg.model_type == "glm":
         from src.models.glm import train_glm
-        return train_glm(
+
+        model, best_model, train_losses, val_losses, best_loss = train_glm(
             cfg,
             x_train,
             y_train,
@@ -90,8 +91,11 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
             lon_in=lon_in,
             lat_out=lat_out,
             lon_out=lon_out,
-            n_neighbors=4,   # GLM4 par défaut
+            n_neighbors=cfg.glm_n_neighbors,
         )
+
+        best_epoch = None
+        return model, best_model, train_losses, val_losses, best_loss, best_epoch
 
     model = _build_model(cfg, x_train, y_train).to(cfg.device)
 
@@ -191,6 +195,7 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
     train_losses = []
     val_losses = []
     best_loss = float("inf")
+    best_epoch = 0
     patience = 0
     best_state_dict = None
 
@@ -301,20 +306,18 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
         # Best model tracking + early stopping
         # ----------------
         if monitored_loss < best_loss:
-            old_best = best_loss
             best_loss = monitored_loss
+            best_epoch = epoch + 1
             patience = 0
             best_state_dict = copy.deepcopy(model.state_dict())
 
             if val_loss is not None:
                 vprint(
-                    f"Best model updated at epoch {epoch+1} "
-                    f"(Train Loss: {epoch_loss:.4f}, Val Loss: {val_loss:.4f})"
+                    f"Best model updated at epoch {best_epoch} "
                 )
             else:
                 vprint(
-                    f"Best model updated at epoch {epoch+1} "
-                    f"(Loss: {epoch_loss:.4f})"
+                    f"Best model updated at epoch {best_epoch} "
                 )
         else:
             if getattr(cfg, "early_stopping_enable", False):
@@ -324,7 +327,11 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
                     f"(patience: {patience}/{getattr(cfg, 'early_stopping_max', 15)})"
                 )
                 if patience >= getattr(cfg, "early_stopping_max", 15):
-                    vprint("Early stopping triggered.")
+                    vprint(
+                        f"Early stopping triggered at epoch {epoch+1}/{cfg.epochs}. "
+                        f"Best model was found at epoch {best_epoch} "
+                        f"with monitored loss = {best_loss:.4f}."
+                    )
                     break
 
     # Build best model copy
@@ -336,4 +343,4 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
 
     # model = last model
     # best_model = best model according to current criterion
-    return model, best_model, train_losses, val_losses, best_loss
+    return model, best_model, train_losses, val_losses, best_loss, best_epoch

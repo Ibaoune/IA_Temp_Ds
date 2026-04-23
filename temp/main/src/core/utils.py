@@ -435,8 +435,6 @@ def save_model(cfg, model, train_losses=None, val_losses=None, tag="last", best_
         for k, v in vars(cfg).items():
             f.write(f"{k}: {v}\n")
 
-    vprint(f" {tag.upper()} model saved at: {model_path}")
-    vprint(f" Config saved at: {config_txt_path}")
     return model_path
 
 

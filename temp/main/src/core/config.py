@@ -105,6 +105,10 @@ class Config:
         self.scheduler_factor = _to_float(sched.get("factor", 0.5))
         self.scheduler_min_lr = _to_float(sched.get("min_lr", 1e-6))
 
+        glm_cfg = cfg_dict.get("glm", {})
+        self.glm_n_neighbors = _to_int(glm_cfg.get("n_neighbors", 4))
+
+
         # ----------------------
         # Region
         # ----------------------

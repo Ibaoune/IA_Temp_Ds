@@ -56,14 +56,14 @@ def main():
     # ----------------
     # Train model
     # ----------------
-    last_model, best_model, train_losses, val_losses, best_loss = train_model(
-    cfg,
-    x_train_tensor,
-    y_train_tensor,
-    lat_in=lat_in,
-    lon_in=lon_in,
-    lat_out=lat_out,
-    lon_out=lon_out,
+    last_model, best_model, train_losses, val_losses, best_loss, best_epoch = train_model(
+        cfg,
+        x_train_tensor,
+        y_train_tensor,
+        lat_in=lat_in,
+        lon_in=lon_in,
+        lat_out=lat_out,
+        lon_out=lon_out,
     )
 
     # ----------------
@@ -99,12 +99,20 @@ def main():
             best_score=best_loss,
         )
 
-        vprint(f"LAST model saved at: {last_model_path}")
-        vprint(f"BEST model saved at: {best_model_path}")
+    vprint("\n=========== Training Summary ===========")
+    if best_epoch is not None:
+        vprint(f"Best epoch         : {best_epoch}")
 
-    vprint(f"Train execution over. Results saved in {cfg.exp_dir}")
+    if cfg.model_type == "glm":
+        vprint(f"GLM model saved    : {glm_model_path}")
+    else:
+        if best_loss is not None:
+            vprint(f"Best monitored loss: {best_loss:.4f}")
+        vprint(f"LAST model saved   : {last_model_path}")
+        vprint(f"BEST model saved   : {best_model_path}")
 
-    vprint("=== Training completed ===")
+    vprint(f"Results directory  : {cfg.exp_dir}")
+    vprint("========================================")
 
 
 if __name__ == "__main__":

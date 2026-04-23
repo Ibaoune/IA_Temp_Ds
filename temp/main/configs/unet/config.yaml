@@ -16,8 +16,8 @@ general:
 
 training:
   learning_rate: 1e-3
-  epochs: 50
-  batch_size: 4 # le nombre d’exemples envoyés au modèle en une seule itération.
+  epochs: 100
+  batch_size: 64 # le nombre d’exemples envoyés au modèle en une seule itération.
   loss_type: "gaussian" 
   norm_mode: "gridbox"         
   early_stopping:
@@ -54,6 +54,7 @@ region:
   lat_min: 21
   lat_max: 36
 
+dates:
   train:
     start: "1980-01-01"
     end: "2005-12-31"
@@ -63,7 +64,7 @@ region:
 
 paths:
   root_dir: ""
-  results_dir: "./temp/results_test/"
+  results_dir: "./temp/results/"
   shapefile_path: "./morocco_shapefile/morocco_unified_fixed_v2.shp"
   era5_predictor_pattern: "./DATA1/predictors_era5/{var}_1979-2020_levels.nc"
   mswt_path: "./DATA1/predictand_mswet/mswt_1979_2020.nc"
