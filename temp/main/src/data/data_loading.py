@@ -81,6 +81,136 @@ def _print_basic_stats(arr, name, vprint_fn):
     except Exception as e:
         vprint_fn(f"   [STATS] {name}: unable to compute stats ({e})")
 
+def _pressure_to_hpa(level_value):
+    """
+    Convert pressure level to hPa if needed.
+    If already in hPa (500, 700, 850, 1000), keep as is.
+    If in Pa (50000, 70000, ...), convert to hPa.
+    """
+    p = float(level_value)
+    return p / 100.0 if p > 2000 else p
+
+
+def _relative_to_specific_humidity(rh, temp_k, pressure_level):
+    """
+    Convert relative humidity to specific humidity.
+
+    Parameters
+    ----------
+    rh : xarray.DataArray
+        Relative humidity, either in fraction [0,1] or in % [0,100].
+    temp_k : xarray.DataArray
+        Temperature in Kelvin.
+    pressure_level : float
+        Pressure level (usually 500, 700, 850, 1000 hPa).
+
+    Returns
+    -------
+    q : xarray.DataArray
+        Specific humidity in kg/kg.
+    """
+    # Kelvin -> Celsius
+    temp_c = temp_k - 273.15
+
+    # Detect RH convention
+    # if values are > 1.5, assume RH in %
+    rh_frac = xr.where(rh > 1.5, rh / 100.0, rh)
+    rh_frac = rh_frac.clip(min=0.0, max=1.0)
+
+    # Pressure in hPa
+    p_hpa = _pressure_to_hpa(pressure_level)
+
+    # Saturation vapor pressure (Tetens), in hPa
+    es = 6.112 * np.exp((17.67 * temp_c) / (temp_c + 243.5))
+
+    # Actual vapor pressure, in hPa
+    e = rh_frac * es
+
+    # Specific humidity, kg/kg
+    q = 0.622 * e / (p_hpa - 0.378 * e)
+
+    # Physical constraint: specific humidity cannot be negative
+    q = q.clip(min=0.0)
+
+    q = q.astype("float32")
+    q.attrs["units"] = "kg kg-1"
+    q.attrs["long_name"] = "specific humidity"
+    q.name = "q"
+    return q
+
+
+def _load_lmdz_q_from_rh(cfg, levels, base_dir, suffix):
+    """
+    Build LMDZ specific humidity q from relative humidity (rhum) + temperature (temp).
+    Returns a list of processed level arrays ready for concat.
+    """
+    data_arrays_q = []
+
+    rh_name = cfg.lmdz_var_map.get("q", "rhum")
+    t_name = cfg.lmdz_var_map.get("t", "temp")
+
+    rh_file = cfg.lmdz_predictor_pattern.format(
+        folder=base_dir.rstrip("/"),
+        lmdz_var=rh_name,
+        suffix=suffix
+    )
+    t_file = cfg.lmdz_predictor_pattern.format(
+        folder=base_dir.rstrip("/"),
+        lmdz_var=t_name,
+        suffix=suffix
+    )
+
+    vprint(f"Loading RH file for q conversion: {rh_file}")
+    vprint(f"Loading T  file for q conversion: {t_file}")
+
+    if not os.path.exists(rh_file):
+        raise FileNotFoundError(f"RH file not found: {rh_file}")
+    if not os.path.exists(t_file):
+        raise FileNotFoundError(f"Temperature file not found: {t_file}")
+
+    ds_rh_full = xr.open_dataset(rh_file)
+    ds_t_full = xr.open_dataset(t_file)
+
+    try:
+        ds_rh = use.mask_dataset(
+            ds_rh_full,
+            slice(cfg.lon_min, cfg.lon_max),
+            slice(cfg.lat_min, cfg.lat_max),
+        )
+        ds_t = use.mask_dataset(
+            ds_t_full,
+            slice(cfg.lon_min, cfg.lon_max),
+            slice(cfg.lat_min, cfg.lat_max),
+        )
+
+        rh_var = next((v for v in ds_rh.data_vars if v.lower() == rh_name.lower()), list(ds_rh.data_vars)[0])
+        t_var  = next((v for v in ds_t.data_vars if v.lower() == t_name.lower()), list(ds_t.data_vars)[0])
+
+        rh_lev_dim = next((d for d in ["presnivs", "plev", "level"] if d in ds_rh[rh_var].dims), "level")
+        rh_time_dim = next((d for d in ["time_counter", "time"] if d in ds_rh[rh_var].dims), "time")
+
+        t_lev_dim = next((d for d in ["presnivs", "plev", "level"] if d in ds_t[t_var].dims), "level")
+        t_time_dim = next((d for d in ["time_counter", "time"] if d in ds_t[t_var].dims), "time")
+
+        for lev in levels:
+            vprint(f"  → Building q at level {lev} from rhum + temp")
+
+            rh_arr = ds_rh[rh_var].sel({rh_lev_dim: lev}, method="nearest").squeeze()
+            t_arr  = ds_t[t_var].sel({t_lev_dim: lev}, method="nearest").squeeze()
+
+            q_arr = _relative_to_specific_humidity(rh_arr, t_arr, lev)
+
+            # process like any other predictor level
+            p_arr = _process_level_array(cfg, q_arr, "q", lev, rh_time_dim, rh_lev_dim)
+            if p_arr is not None:
+                data_arrays_q.append(p_arr)
+
+    finally:
+        ds_rh_full.close()
+        ds_t_full.close()
+
+    return data_arrays_q
+
 def _process_level_array(cfg, arr, var, lev, curr_time_dim, curr_lev_dim):
     """
     Common processing for a single level array (renaming, transposition, interpolation).
@@ -242,12 +372,20 @@ def load_datasets(cfg):
             base_dir = getattr(cfg, "folder", cfg.bc_reference_folder).rstrip("/") + "/"
             suffix = "hist" 
             for s in ["ssp245", "ssp585"]:
-                if s in base_dir.lower(): suffix = s; break
+                if s in base_dir.lower():
+                    suffix = s
+                    break
             file_pattern = cfg.lmdz_predictor_pattern
         else:
             base_dir = None
             suffix = None
             file_pattern = cfg.era5_predictor_pattern
+
+        # Special case: q must be reconstructed from RH + T for LMDZ
+        if cfg.src == "lmdz" and var.lower() == "q":
+            q_arrays = _load_lmdz_q_from_rh(cfg, levels, base_dir, suffix)
+            data_arrays.extend(q_arrays)
+            continue
 
         is_level_specific = "{level}" in file_pattern or "{lev}" in file_pattern
 
@@ -273,6 +411,13 @@ def load_datasets(cfg):
                     ds = use.mask_dataset(ds_full, slice(cfg.lon_min, cfg.lon_max), slice(cfg.lat_min, cfg.lat_max))
                     actual_var = next((v for v in ds.data_vars if v.lower() == lmdz_var.lower()), list(ds.data_vars)[0])
                     arr = ds[actual_var].sel({curr_lev_dim: lev}, method="nearest").squeeze()
+
+                    # Convert temperature to Celsius for both LMDZ and ERA5 if stored in Kelvin
+                    if var.lower() == "t":
+                        arr_units = arr.attrs.get("units", "")
+                        if arr_units in ["K", "kelvin", "Kelvin"]:
+                            arr = arr - 273.15
+                            arr.attrs["units"] = "degree_Celsius"
                     
                     p_arr = _process_level_array(cfg, arr, var, lev, curr_time_dim, curr_lev_dim)
                     if p_arr is not None: data_arrays.append(p_arr)

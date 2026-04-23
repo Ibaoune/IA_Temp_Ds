@@ -6,7 +6,9 @@ climate_env/
 temp/results/
 temp/results_test/
 temp/exploration/
-temp/postproc/
+temp/postproc/mean/QQ/
+temp/prediction/
+quick_hist_summary.csv
 # Python
 __pycache__/
 *.py[cod]
