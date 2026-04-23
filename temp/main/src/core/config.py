@@ -71,13 +71,39 @@ class Config:
         self.batch_size = _to_int(tr.get("batch_size"))
         self.loss_type = str(tr.get("loss_type"))
         self.norm_mode = str(tr.get("norm_mode"))
-        self.early_stopping_max = _to_int(tr.get("early_stopping_max"))
 
-        cnn_cfg = cfg_dict.get("cnn", {})
-        self.cnn_mode = str(cnn_cfg.get("mode", "cnn10"))
+        es = tr.get("early_stopping", {})
+        self.early_stopping_enable = _to_bool(es.get("enable", False))
+        self.early_stopping_max = _to_int(es.get("max", 15))
 
-        glm_cfg = cfg_dict.get("glm", {})
-        self.glm_n_neighbors = _to_int(glm_cfg.get("n_neighbors", 4))
+        self.optimizer = str(tr.get("optimizer", "adam")).lower()
+
+        wd = tr.get("weight_decay", {})
+        self.weight_decay_enable = _to_bool(wd.get("enable", False))
+        self.weight_decay_value = _to_float(wd.get("value", 0.0))
+
+        gc = tr.get("gradient_clipping", {})
+        self.gradient_clipping_enable = _to_bool(gc.get("enable", False))
+        self.gradient_clipping_value = _to_float(gc.get("value", 1.0))
+
+        drop = tr.get("dropout", {})
+        self.dropout_enable = _to_bool(drop.get("enable", False))
+        self.dropout_value = _to_float(drop.get("value", 0.0))
+
+        gn = tr.get("group_norm", {})
+        self.group_norm_enable = _to_bool(gn.get("enable", False))
+        self.group_norm_num_groups = _to_int(gn.get("num_groups", 32))
+
+        val = tr.get("validation", {})
+        self.validation_enable = _to_bool(val.get("enable", False))
+        self.validation_percentage = _to_float(val.get("percentage", val.get("pecentage", 0.2)))
+
+        sched = tr.get("scheduler", {})
+        self.scheduler_enable = _to_bool(sched.get("enable", False))
+        self.scheduler_type = str(sched.get("type", "plateau")).lower()
+        self.scheduler_patience = _to_int(sched.get("patience", 5))
+        self.scheduler_factor = _to_float(sched.get("factor", 0.5))
+        self.scheduler_min_lr = _to_float(sched.get("min_lr", 1e-6))
 
         # ----------------------
         # Region
