@@ -30,12 +30,6 @@ python -m temp.postproc.mean.correlation.corr
 echo "[CORRELATION] plot"
 python -m temp.postproc.mean.correlation.plot
 
-echo "[QQ] compute"
-python -m temp.postproc.mean.QQ.compute_qq_data
-echo "[QQ] plot"
-python -m temp.postproc.mean.QQ.plot_qq
-
-
 echo ""
 echo "========== EXTREME METRICS =========="
 
