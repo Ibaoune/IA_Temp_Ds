@@ -43,10 +43,10 @@ training:
     type: "cosine"
   group_norm:
     enable: true
-    num_groups: 32
+    num_groups: 8
   validation:
     enable: true
-    pecentage: 0.2
+    percentage: 0.2
 
 region:
   lon_min: -18

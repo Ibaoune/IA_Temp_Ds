@@ -56,6 +56,37 @@ def _build_model(cfg, x_test, y_test):
 
         return WrappedUNet()
 
+    elif cfg.model_type == "unet1":
+        from src.models.unet_arch1 import UNet1
+        import torch.nn as nn
+
+        class WrappedUNet(nn.Module):
+            def __init__(self):
+                super().__init__()
+
+                self.out_shape = (
+                    y_test.shape[-2],
+                    y_test.shape[-1],
+                )
+
+                self.unet = UNet1(
+                    in_channels=x_test.shape[1],   
+                    out_channels=out_channels,     
+                    base_filters=64,
+                    use_gaussian=(out_channels == 2),
+                    norm_type="group" if cfg.group_norm_enable else "batch",
+                    num_groups=cfg.group_norm_num_groups,
+                    dropout=cfg.dropout_value if cfg.dropout_enable else 0.0,
+                )
+
+            def forward(self, x):
+                return self.unet(
+                    x,
+                    target_size=self.out_shape,
+                )
+
+        return WrappedUNet()
+
     elif cfg.model_type == "cnn":
         from src.models.cnn import CNN
 

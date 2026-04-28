@@ -9,6 +9,7 @@ temp/exploration/
 temp/postproc/mean/QQ/
 temp/prediction/
 quick_hist_summary.csv
+temp/XAI/
 # Python
 __pycache__/
 *.py[cod]

@@ -4,38 +4,39 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import xarray as xr
 import yaml
-from scipy.stats import t as student_t
+import matplotlib.pyplot as plt
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import (
-    SEASONS,
-    align_prediction_and_observation,
-    convert_temperature_to_celsius,
-    ensure_metric_dirs,
-    get_months,
-    open_temperature_dataarray,
-    save_json,
-    save_summary_csv,
-    spatial_summary,
-    subset_test_period,
+from ...common import ensure_metric_dirs
+from ...map_utils import (
+    apply_shape_mask,
+    plot_metric_map,
+    plot_annual_bias_boxplot,
+    plot_seasonal_bias_boxplot,
+    plot_seasonal_bias_panel,
 )
 
+
+SEASON_ORDER = ["DJF", "MAM", "JJA", "SON"]
+
+SEASON_TITLES = {
+    "DJF": "Winter (DJF)",
+    "MAM": "Spring (MAM)",
+    "JJA": "Summer (JJA)",
+    "SON": "Autumn (SON)",
+}
 
 THIS_FILE = Path(__file__).resolve()
 PROJECT_ROOT = THIS_FILE.parents[4]
 DEFAULT_METRIC_CONFIG = THIS_FILE.with_name("config.yaml")
 
 
-# =========================================================
-# CLI
-# =========================================================
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Compute temperature correlations using a metric-specific YAML config."
+        description="Plot temperature correlation diagnostics from computed NetCDF files."
     )
     parser.add_argument(
         "metric_config",
@@ -43,12 +44,11 @@ def parse_args():
         default=str(DEFAULT_METRIC_CONFIG),
         help="Path to correlation metric config.yaml",
     )
+    parser.add_argument("--show", action="store_true")
+    parser.add_argument("--robust", action="store_true")
     return parser.parse_args()
 
 
-# =========================================================
-# YAML helpers
-# =========================================================
 def load_yaml(path: Path) -> dict:
     if not path.exists():
         raise FileNotFoundError(f"YAML file not found: {path}")
@@ -60,512 +60,398 @@ def load_yaml(path: Path) -> dict:
 def resolve_from_project_root(path_value: str | None) -> Path | None:
     if path_value in (None, "", "null"):
         return None
-
     p = Path(path_value)
     if p.is_absolute():
         return p
     return (PROJECT_ROOT / p).resolve()
 
 
-# =========================================================
-# Validation helpers
-# =========================================================
-def validate_metric_config(metric_cfg: dict):
-    if "project" not in metric_cfg:
-        raise ValueError("Missing 'project' section in metric config.")
-    if "metric" not in metric_cfg:
-        raise ValueError("Missing 'metric' section in metric config.")
-    if "data" not in metric_cfg:
-        raise ValueError("Missing 'data' section in metric config.")
-    if "time" not in metric_cfg:
-        raise ValueError("Missing 'time' section in metric config.")
-    if "output" not in metric_cfg:
-        raise ValueError("Missing 'output' section in metric config.")
+def resolve_corr_file(data_dir: Path, corr_type: str, season: str) -> Path | None:
+    path = data_dir / f"{corr_type}_{season.lower()}_mean_period.nc"
+    return path if path.exists() else None
 
-    metric_name = metric_cfg["metric"].get("name", None)
-    if metric_name != "correlation":
-        raise ValueError(f"metric.name must be 'correlation', got {metric_name!r}")
 
-    seasons = metric_cfg["metric"].get("seasons", list(SEASONS.keys()))
-    invalid = [s for s in seasons if s not in SEASONS]
-    if invalid:
-        raise ValueError(
-            f"Unknown seasons in metric.seasons: {invalid}. Valid keys: {list(SEASONS.keys())}"
+def load_corr_field(nc_path: Path, corr_type: str):
+    ds = xr.open_dataset(nc_path)
+
+    corr_var = corr_type
+    sig_var = f"{corr_type}_sig"
+
+    if corr_var not in ds.data_vars:
+        raise KeyError(f"{corr_var!r} not found in {nc_path}")
+
+    da = ds[corr_var]
+
+    if "year" in da.dims:
+        da = da.mean(dim="year", skipna=True)
+
+    sig = None
+    if sig_var in ds.data_vars:
+        sig = ds[sig_var]
+        if "year" in sig.dims:
+            sig = sig.mean(dim="year", skipna=True)
+
+    return da, sig
+
+
+def get_lat_lon(da: xr.DataArray):
+    if "lat" in da.coords:
+        lat = da["lat"].values
+    elif "latitude" in da.coords:
+        lat = da["latitude"].values
+    else:
+        raise KeyError("Latitude coordinate not found.")
+
+    if "lon" in da.coords:
+        lon = da["lon"].values
+    elif "longitude" in da.coords:
+        lon = da["longitude"].values
+    else:
+        raise KeyError("Longitude coordinate not found.")
+
+    return lon, lat
+
+
+def plot_corr_with_significance(
+    corr_da: xr.DataArray,
+    sig_da: xr.DataArray | None,
+    title: str,
+    fig_path: Path,
+    cfg,
+    show: bool = False,
+):
+    arr = corr_da.values
+    lons, lats = get_lat_lon(corr_da)
+
+    masked_arr = apply_shape_mask(
+        arr,
+        lons,
+        lats,
+        cfg.shapefile_path,
+    )
+
+    fig, ax = plt.subplots(figsize=(9, 7))
+
+    im = ax.pcolormesh(
+        lons,
+        lats,
+        masked_arr,
+        shading="auto",
+        vmin=0,
+        vmax=1,
+        cmap="Blues",
+    )
+
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label("Correlation")
+
+    # Significativité : points noirs
+    if sig_da is not None:
+        sig_arr = sig_da.values
+        sig_masked = apply_shape_mask(
+            sig_arr,
+            lons,
+            lats,
+            cfg.shapefile_path,
         )
 
-    min_valid = int(metric_cfg["metric"].get("min_valid", 10))
-    if min_valid < 1:
-        raise ValueError("metric.min_valid must be >= 1")
+        lon2d, lat2d = np.meshgrid(lons, lats)
 
-    window = int(metric_cfg["metric"].get("window", 31))
-    if window < 1:
-        raise ValueError("metric.window must be >= 1")
-    if window % 2 == 0:
-        raise ValueError("metric.window must be odd (e.g. 31)")
+        sig_points = np.isfinite(sig_masked) & (sig_masked == 1)
 
-    use_main_period = metric_cfg["time"].get("use_test_period_from_main_config", True)
-    if not use_main_period:
-        start_date = metric_cfg["time"].get("start_date", None)
-        end_date = metric_cfg["time"].get("end_date", None)
-        if not start_date or not end_date:
-            raise ValueError(
-                "time.start_date and time.end_date must be provided when "
-                "use_test_period_from_main_config = false"
+        ax.scatter(
+            lon2d[sig_points],
+            lat2d[sig_points],
+            s=2,
+            c="black",
+            marker=".",
+            alpha=0.8,
+        )
+
+    # Limites
+    ax.set_xlim(cfg.lon_min, cfg.lon_max)
+    ax.set_ylim(cfg.lat_min, cfg.lat_max)
+
+    ax.set_title(title, fontsize=15, fontweight="bold")
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+    ax.grid(True, linestyle="--", alpha=0.3)
+
+    # Stats
+    finite = masked_arr[np.isfinite(masked_arr)]
+    if finite.size > 0:
+        stats_text = (
+            f"min: {np.nanmin(finite):.3f}\n"
+            f"mean: {np.nanmean(finite):.3f}\n"
+            f"max: {np.nanmax(finite):.3f}"
+        )
+        ax.text(
+            0.98,
+            0.05,
+            stats_text,
+            transform=ax.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=10,
+            bbox=dict(facecolor="white", edgecolor="gray", alpha=0.85),
+        )
+
+    if sig_da is not None:
+        ax.text(
+            0.02,
+            0.05,
+            "Black dots: significant correlation",
+            transform=ax.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=10,
+            bbox=dict(facecolor="white", edgecolor="gray", alpha=0.85),
+        )
+
+    fig.tight_layout()
+    fig.savefig(fig_path, dpi=300, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
+
+
+def plot_one_corr_type(
+    corr_type: str,
+    cfg,
+    exp_path: Path,
+    selected_seasons: list[str],
+    show: bool = False,
+    robust: bool = False,
+):
+    data_dir, plot_dir = ensure_metric_dirs(exp_path, corr_type)
+
+    print(f"\n=== Plotting {corr_type} ===")
+    print(f"Input data dir  : {data_dir}")
+    print(f"Output plot dir : {plot_dir}")
+
+    if corr_type == "corr_d":
+        full_title = "daily deseasonalized correlation"
+        map_title = "Daily deseasonalized correlation (CORR D)"
+    else:
+        full_title = "monthly correlation"
+        map_title = "Monthly correlation (CORR M)"
+
+    annual_arr = None
+    annual_lons = None
+    annual_lats = None
+
+    # Annual map
+    if "Annual" in selected_seasons:
+        annual_path = resolve_corr_file(data_dir, corr_type, "Annual")
+
+        if annual_path is not None:
+            print(f"[STEP] Plotting annual {corr_type} map")
+
+            corr_da, sig_da = load_corr_field(annual_path, corr_type)
+            annual_lons, annual_lats = get_lat_lon(corr_da)
+            annual_arr = corr_da.values
+
+            plot_metric_map(
+                arr=annual_arr,
+                lons=annual_lons,
+                lats=annual_lats,
+                title=f"Annual {map_title}",
+                fig_path=plot_dir / f"annual_{corr_type}_map.png",
+                shapefile_path=cfg.shapefile_path,
+                lon_min=cfg.lon_min,
+                lon_max=cfg.lon_max,
+                lat_min=cfg.lat_min,
+                lat_max=cfg.lat_max,
+                unit="Correlation",
+                metric_type="correlation",
+                n_bins=10,
+                robust=robust,
+                show=show,
             )
 
+            plot_corr_with_significance(
+                corr_da=corr_da,
+                sig_da=sig_da,
+                title=f"Annual {map_title}",
+                fig_path=plot_dir / f"annual_{corr_type}_significance_map.png",
+                cfg=cfg,
+                show=show,
+            )
+        else:
+            print(f"[WARNING] Annual {corr_type} file not found.")
+
+    # Seasonal maps
+    seasonal_arrays = []
+    seasonal_labels = []
+    seasonal_lons = None
+    seasonal_lats = None
+
+    for season in SEASON_ORDER:
+        if season not in selected_seasons:
+            continue
+
+        nc_path = resolve_corr_file(data_dir, corr_type, season)
+
+        if nc_path is None:
+            print(f"[WARNING] Missing {corr_type} file for {season}")
+            continue
+
+        corr_da, sig_da = load_corr_field(nc_path, corr_type)
+        lons, lats = get_lat_lon(corr_da)
+        arr = corr_da.values
+
+        seasonal_arrays.append(arr)
+        seasonal_labels.append(season)
+
+        if seasonal_lons is None:
+            seasonal_lons = lons
+            seasonal_lats = lats
+
+        print(f"[STEP] Plotting {season} {corr_type} map")
+
+        plot_metric_map(
+            arr=arr,
+            lons=lons,
+            lats=lats,
+            title=f"{SEASON_TITLES[season]} {full_title}",
+            fig_path=plot_dir / f"{corr_type}_{season.lower()}_map.png",
+            shapefile_path=cfg.shapefile_path,
+            lon_min=cfg.lon_min,
+            lon_max=cfg.lon_max,
+            lat_min=cfg.lat_min,
+            lat_max=cfg.lat_max,
+            unit="Correlation",
+            metric_type="correlation",
+            n_bins=10,
+            robust=robust,
+            show=show,
+        )
+
+        plot_corr_with_significance(
+            corr_da=corr_da,
+            sig_da=sig_da,
+            title=f"{SEASON_TITLES[season]} {full_title}",
+            fig_path=plot_dir / f"{corr_type}_{season.lower()}_significance_map.png",
+            cfg=cfg,
+            show=show,
+        )
+
+    # Seasonal panel
+    if len(seasonal_arrays) == 4:
+        print(f"[STEP] Plotting seasonal {corr_type} panel")
+
+        plot_seasonal_bias_panel(
+            seasonal_arrays=seasonal_arrays,
+            lons=seasonal_lons,
+            lats=seasonal_lats,
+            shapefile_path=cfg.shapefile_path,
+            lon_min=cfg.lon_min,
+            lon_max=cfg.lon_max,
+            lat_min=cfg.lat_min,
+            lat_max=cfg.lat_max,
+            fig_path=plot_dir / f"seasonal_{corr_type}_panel.png",
+            season_titles=[SEASON_TITLES[s] for s in seasonal_labels],
+            title=f"Seasonal {full_title}",
+            unit="Correlation",
+            n_bins=10,
+            robust=robust,
+            show=show,
+        )
+    else:
+        print(f"[WARNING] Seasonal {corr_type} panel skipped.")
+
+    # Seasonal boxplot
+    if len(seasonal_arrays) == 4:
+        print(f"[STEP] Plotting seasonal {corr_type} boxplot")
+
+        seasonal_arrays_masked = [
+            apply_shape_mask(arr, seasonal_lons, seasonal_lats, cfg.shapefile_path)
+            for arr in seasonal_arrays
+        ]
+
+        plot_seasonal_bias_boxplot(
+            seasonal_arrays=seasonal_arrays_masked,
+            labels=seasonal_labels,
+            fig_path=plot_dir / f"seasonal_{corr_type}_boxplot.png",
+            title=f"Seasonal {corr_type.upper()} distribution",
+            ylabel="Correlation",
+            show=show,
+        )
+
+    # Annual boxplot
+    if annual_arr is not None:
+        print(f"[STEP] Plotting annual {corr_type} boxplot")
+
+        annual_arr_masked = apply_shape_mask(
+            annual_arr,
+            annual_lons,
+            annual_lats,
+            cfg.shapefile_path,
+        )
+
+        plot_annual_bias_boxplot(
+            annual_array=annual_arr_masked,
+            fig_path=plot_dir / f"annual_{corr_type}_boxplot.png",
+            title=f"Annual {corr_type.upper()} distribution",
+            ylabel="Correlation",
+            show=show,
+        )
+
+    print(f"[SUCCESS] {corr_type} figures saved to: {plot_dir}")
 
-# =========================================================
-# Paths / config-driven resolvers
-# =========================================================
-def build_prediction_path(cfg) -> Path:
-    exp_path = Path(build_experiment_path(cfg))
-    return exp_path / "output_data" / f"{cfg.model_type}_predictions_era5_to_{cfg.target}.nc"
 
-
-def get_time_window(metric_cfg: dict, cfg):
-    use_main_period = metric_cfg["time"].get("use_test_period_from_main_config", True)
-
-    if use_main_period:
-        return cfg.start_date_test, cfg.end_date_test
-
-    return (
-        metric_cfg["time"]["start_date"],
-        metric_cfg["time"]["end_date"],
-    )
-
-
-def get_selected_seasons(metric_cfg: dict):
-    selected = metric_cfg["metric"].get("seasons", list(SEASONS.keys()))
-    return {season_name: SEASONS[season_name] for season_name in selected}
-
-
-def get_prediction_and_reference_paths(metric_cfg: dict, cfg):
-    pred_override = resolve_from_project_root(metric_cfg["data"].get("prediction_path"))
-    ref_override = resolve_from_project_root(metric_cfg["data"].get("reference_path"))
-
-    pred_path = pred_override if pred_override is not None else build_prediction_path(cfg)
-    obs_path = ref_override if ref_override is not None else Path(cfg.target_path)
-
-    return pred_path, obs_path
-
-
-# =========================================================
-# Correlation helpers
-# =========================================================
-def drop_feb29(da: xr.DataArray) -> xr.DataArray:
-    month = da["time"].dt.month
-    day = da["time"].dt.day
-    return da.sel(time=~((month == 2) & (day == 29)))
-
-
-def build_climatological_day_index(time_values) -> np.ndarray:
-    dates = pd.to_datetime(time_values)
-
-    clim_day = []
-    for dt in dates:
-        ref = pd.Timestamp(year=2001, month=dt.month, day=dt.day)
-        clim_day.append(ref.dayofyear)
-
-    return np.asarray(clim_day, dtype=int)
-
-
-def smooth_daily_climatology(clim: xr.DataArray, window: int = 31) -> xr.DataArray:
-    if window < 1:
-        raise ValueError("window must be >= 1")
-    if window % 2 == 0:
-        raise ValueError("window must be odd for centered smoothing.")
-
-    pad = window // 2
-
-    left = clim.isel(clim_day=slice(-pad, None)).copy()
-    left = left.assign_coords(clim_day=np.arange(1 - pad, 1))
-
-    right = clim.isel(clim_day=slice(0, pad)).copy()
-    right = right.assign_coords(clim_day=np.arange(366, 366 + pad))
-
-    extended = xr.concat([left, clim, right], dim="clim_day")
-    smoothed = extended.rolling(clim_day=window, center=True, min_periods=1).mean(skipna=True)
-
-    return smoothed.sel(clim_day=slice(1, 365))
-
-
-def deseasonalize_daily(da: xr.DataArray, window: int = 31) -> xr.DataArray:
-    da = drop_feb29(da)
-
-    clim_day = build_climatological_day_index(da["time"].values)
-    da = da.assign_coords(clim_day=("time", clim_day))
-
-    daily_clim = da.groupby("clim_day").mean("time", skipna=True)
-    daily_clim = daily_clim.reindex(clim_day=np.arange(1, 366))
-    daily_clim_smooth = smooth_daily_climatology(daily_clim, window=window)
-
-    anomalies = da.groupby("clim_day") - daily_clim_smooth
-    return anomalies
-
-
-def pearson_corr_pvalue_sig_maps(
-    x: xr.DataArray,
-    y: xr.DataArray,
-    min_valid: int = 10,
-    alpha: float = 0.05,
-):
-    valid = xr.where(np.isfinite(x) & np.isfinite(y), 1, 0)
-    n_valid = valid.sum("time")
-
-    x_valid = x.where(valid == 1)
-    y_valid = y.where(valid == 1)
-
-    x_mean = x_valid.mean("time", skipna=True)
-    y_mean = y_valid.mean("time", skipna=True)
-
-    cov = ((x_valid - x_mean) * (y_valid - y_mean)).mean("time", skipna=True)
-    x_std = x_valid.std("time", skipna=True)
-    y_std = y_valid.std("time", skipna=True)
-
-    corr = cov / (x_std * y_std)
-    corr = corr.where((n_valid >= min_valid) & (x_std > 0) & (y_std > 0))
-
-    dof = n_valid - 2
-    with np.errstate(divide="ignore", invalid="ignore"):
-        t_stat = corr * np.sqrt(dof / (1.0 - corr**2))
-
-    pval = xr.apply_ufunc(
-        lambda t, df: 2.0 * student_t.sf(np.abs(t), df),
-        t_stat,
-        dof,
-        vectorize=True,
-        dask="parallelized",
-        output_dtypes=[float],
-    )
-    pval = pval.where((n_valid >= min_valid) & (dof > 0) & np.isfinite(corr))
-
-    sig = (pval < alpha).astype(np.int8)
-    sig = sig.where(np.isfinite(corr))
-
-    return corr, pval, sig, n_valid
-
-def compute_corr_d(
-    pred: xr.DataArray,
-    obs: xr.DataArray,
-    min_valid: int = 10,
-    window: int = 31,
-    alpha: float = 0.05,
-):
-    pred_anom = deseasonalize_daily(pred, window=window)
-    obs_anom = deseasonalize_daily(obs, window=window)
-
-    pred_anom, obs_anom = xr.align(pred_anom, obs_anom, join="inner")
-
-    corr_d, pval_d, sig_d, n_valid_d = pearson_corr_pvalue_sig_maps(
-        pred_anom, obs_anom, min_valid=min_valid, alpha=alpha
-    )
-
-    corr_d.name = "corr_d"
-    corr_d.attrs["long_name"] = "Daily deseasonalized Pearson correlation"
-
-    pval_d.name = "corr_d_pval"
-    pval_d.attrs["long_name"] = "P-value of CORR D"
-
-    sig_d.name = "corr_d_sig"
-    sig_d.attrs["long_name"] = "Significance mask of CORR D (1: significant, 0: not significant)"
-    sig_d.attrs["alpha"] = alpha
-
-    n_valid_d.name = "corr_d_n_valid"
-    n_valid_d.attrs["long_name"] = "Number of valid time steps used for CORR D"
-
-    return corr_d, pval_d, sig_d, n_valid_d
-
-
-def compute_corr_m(
-    pred: xr.DataArray,
-    obs: xr.DataArray,
-    min_valid: int = 10,
-    alpha: float = 0.05,
-):
-    pred_month = pred.resample(time="MS").mean(skipna=True)
-    obs_month = obs.resample(time="MS").mean(skipna=True)
-
-    pred_month, obs_month = xr.align(pred_month, obs_month, join="inner")
-
-    corr_m, pval_m, sig_m, n_valid_m = pearson_corr_pvalue_sig_maps(
-        pred_month, obs_month, min_valid=min_valid, alpha=alpha
-    )
-
-    corr_m.name = "corr_m"
-    corr_m.attrs["long_name"] = "Monthly Pearson correlation"
-
-    pval_m.name = "corr_m_pval"
-    pval_m.attrs["long_name"] = "P-value of CORR M"
-
-    sig_m.name = "corr_m_sig"
-    sig_m.attrs["long_name"] = "Significance mask of CORR M (1: significant, 0: not significant)"
-    sig_m.attrs["alpha"] = alpha
-
-    n_valid_m.name = "corr_m_n_valid"
-    n_valid_m.attrs["long_name"] = "Number of valid time steps used for CORR M"
-
-    return corr_m, pval_m, sig_m, n_valid_m
-
-
-def compute_one_tag(
-    pred: xr.DataArray,
-    obs: xr.DataArray,
-    season_name: str,
-    months: list[int],
-    min_valid: int,
-    window: int,
-    alpha: float,
-):
-    month_mask = get_months(pred["time"].values)
-    idx = [m in months for m in month_mask]
-
-    pred_sub = pred.isel(time=idx)
-    obs_sub = obs.isel(time=idx)
-
-    if pred_sub.sizes["time"] == 0:
-        raise ValueError(f"No time steps found for season/tag '{season_name}'.")
-
-    corr_d, corr_d_pval, corr_d_sig, corr_d_n_valid = compute_corr_d(
-        pred_sub,
-        obs_sub,
-        min_valid=min_valid,
-        window=window,
-        alpha=alpha,
-    )
-
-    corr_m, corr_m_pval, corr_m_sig, corr_m_n_valid = compute_corr_m(
-        pred_sub,
-        obs_sub,
-        min_valid=min_valid,
-        alpha=alpha,
-    )
-
-    for da in [corr_d, corr_d_pval, corr_d_sig, corr_d_n_valid]:
-        da.attrs["season"] = season_name
-
-    for da in [corr_m, corr_m_pval, corr_m_sig, corr_m_n_valid]:
-        da.attrs["season"] = season_name
-
-    return (
-        corr_d, corr_d_pval, corr_d_sig, corr_d_n_valid,
-        corr_m, corr_m_pval, corr_m_sig, corr_m_n_valid,
-    )
-
-
-# =========================================================
-# Main
-# =========================================================
 def main():
     args = parse_args()
 
     metric_cfg_path = Path(args.metric_config).resolve()
     metric_cfg = load_yaml(metric_cfg_path)
-    validate_metric_config(metric_cfg)
 
     main_cfg_path = resolve_from_project_root(
         metric_cfg["project"].get("main_config_path")
     )
+
     if main_cfg_path is None:
         raise ValueError("project.main_config_path must be provided in metric config.")
-    if not main_cfg_path.exists():
-        raise FileNotFoundError(f"Main config not found: {main_cfg_path}")
 
     cfg = load_config(train_mode=False, path=str(main_cfg_path))
 
     if str(cfg.variable).lower() != "temp":
-        raise ValueError(
-            f"This compute script is only for temperature, but cfg.variable={cfg.variable!r}"
-        )
+        raise ValueError("This plot script is only for temperature experiments.")
+
+    selected_seasons = metric_cfg["metric"].get(
+        "seasons",
+        ["Annual", "DJF", "MAM", "JJA", "SON"],
+    )
 
     exp_path = Path(build_experiment_path(cfg))
-    selected_seasons = get_selected_seasons(metric_cfg)
 
-    if not selected_seasons:
-        raise ValueError("metric.seasons cannot be empty.")
-
-    min_valid = int(metric_cfg["metric"].get("min_valid", 10))
-    window = int(metric_cfg["metric"].get("window", 31))
-    alpha = float(metric_cfg["metric"].get("alpha", 0.05))
-
-    pred_var = metric_cfg["data"].get("prediction_var", "air_temperature")
-    obs_var = metric_cfg["data"].get("reference_var", None)
-    pred_units = metric_cfg["data"].get("prediction_units", None)
-    obs_units = metric_cfg["data"].get("reference_units", None)
-
-    save_netcdf = bool(metric_cfg["output"].get("save_netcdf", True))
-    save_summary_json = bool(metric_cfg["output"].get("save_summary_json", True))
-    save_summary_csv_flag = bool(metric_cfg["output"].get("save_summary_csv", True))
-
-    pred_path, obs_path = get_prediction_and_reference_paths(metric_cfg, cfg)
-    start_date, end_date = get_time_window(metric_cfg, cfg)
-
-    if not pred_path.exists():
-        raise FileNotFoundError(f"Prediction file not found: {pred_path}")
-    if not obs_path.exists():
-        raise FileNotFoundError(f"Observation file not found: {obs_path}")
-
-    corr_d_data_dir, corr_d_plots_dir = ensure_metric_dirs(exp_path, "corr_d")
-    corr_m_data_dir, corr_m_plots_dir = ensure_metric_dirs(exp_path, "corr_m")
-
-    print("=== Temperature correlation postprocessing ===")
+    print("=== Temperature correlation plotting ===")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Experiment root : {exp_path}")
-    print(f"Prediction file : {pred_path}")
-    print(f"Observation file: {obs_path}")
-    print(f"Time window     : {start_date} -> {end_date}")
-    print(f"Window (CORR D) : {window}")
-    print(f"Min valid       : {min_valid}")
-    print(f"Seasons         : {list(selected_seasons.keys())}")
-    print(f"corr_d data dir : {corr_d_data_dir}")
-    print(f"corr_m data dir : {corr_m_data_dir}")
-    print(f"corr_d plot dir : {corr_d_plots_dir}")
-    print(f"corr_m plot dir : {corr_m_plots_dir}")
+    print(f"Selected seasons: {selected_seasons}")
 
-    pred = open_temperature_dataarray(pred_path, var_name=pred_var)
-    obs = open_temperature_dataarray(obs_path, var_name=obs_var)
+    plot_one_corr_type(
+        corr_type="corr_d",
+        cfg=cfg,
+        exp_path=exp_path,
+        selected_seasons=selected_seasons,
+        show=args.show,
+        robust=args.robust,
+    )
 
-    pred = subset_test_period(pred, start_date, end_date)
-    obs = subset_test_period(obs, start_date, end_date)
+    plot_one_corr_type(
+        corr_type="corr_m",
+        cfg=cfg,
+        exp_path=exp_path,
+        selected_seasons=selected_seasons,
+        show=args.show,
+        robust=args.robust,
+    )
 
-    pred, pred_unit_note = convert_temperature_to_celsius(pred, forced_unit=pred_units)
-    obs, obs_unit_note = convert_temperature_to_celsius(obs, forced_unit=obs_units)
-
-    print(f"Prediction units : {pred_unit_note}")
-    print(f"Observation units: {obs_unit_note}")
-
-    pred, obs = align_prediction_and_observation(pred, obs)
-    print(f"Aligned shape    : pred={pred.shape}, obs={obs.shape}")
-
-    summary_rows_corr_d = []
-    summary_rows_corr_m = []
-
-    for season_name, months in selected_seasons.items():
-        print(f"\n--- Computing correlations for {season_name} ---")
-
-        (
-            corr_d, corr_d_pval, corr_d_sig, corr_d_n,
-            corr_m, corr_m_pval, corr_m_sig, corr_m_n,
-        ) = compute_one_tag(
-            pred=pred,
-            obs=obs,
-            season_name=season_name,
-            months=months,
-            min_valid=min_valid,
-            window=window,
-            alpha=alpha,
-        )
-
-        ds_corr_d = xr.Dataset({
-            "corr_d": corr_d,
-            "corr_d_pval": corr_d_pval,
-            "corr_d_sig": corr_d_sig,
-            "corr_d_n_valid": corr_d_n,
-        })
-
-        ds_corr_m = xr.Dataset({
-            "corr_m": corr_m,
-            "corr_m_pval": corr_m_pval,
-            "corr_m_sig": corr_m_sig,
-            "corr_m_n_valid": corr_m_n,
-        })
-
-        for ds_out, metric_name in [(ds_corr_d, "corr_d"), (ds_corr_m, "corr_m")]:
-            ds_out.attrs["metric"] = metric_name
-            ds_out.attrs["metric_family"] = "correlation"
-            ds_out.attrs["variable"] = "temperature"
-            ds_out.attrs["season"] = season_name
-            ds_out.attrs["prediction_file"] = str(pred_path)
-            ds_out.attrs["observation_file"] = str(obs_path)
-            ds_out.attrs["time_start"] = str(start_date)
-            ds_out.attrs["time_end"] = str(end_date)
-            ds_out.attrs["min_valid"] = min_valid
-            if metric_name == "corr_d":
-                ds_out.attrs["window_days"] = window
-
-        out_nc_corr_d = corr_d_data_dir / f"corr_d_{season_name.lower()}_mean_period.nc"
-        out_nc_corr_m = corr_m_data_dir / f"corr_m_{season_name.lower()}_mean_period.nc"
-
-        if save_netcdf:
-            ds_corr_d.to_netcdf(out_nc_corr_d)
-            ds_corr_m.to_netcdf(out_nc_corr_m)
-
-        corr_d_stats = spatial_summary(corr_d)
-        corr_m_stats = spatial_summary(corr_m)
-
-        if save_summary_json:
-            save_json(
-                {
-                    "season": season_name,
-                    "metric": "corr_d",
-                    "min_valid": min_valid,
-                    "window_days": window,
-                    **corr_d_stats,
-                    "file": str(out_nc_corr_d) if save_netcdf else "",
-                },
-                corr_d_data_dir / f"summary_corr_d_{season_name.lower()}_mean_period.json",
-            )
-
-            save_json(
-                {
-                    "season": season_name,
-                    "metric": "corr_m",
-                    "min_valid": min_valid,
-                    **corr_m_stats,
-                    "file": str(out_nc_corr_m) if save_netcdf else "",
-                },
-                corr_m_data_dir / f"summary_corr_m_{season_name.lower()}_mean_period.json",
-            )
-
-        summary_rows_corr_d.append(
-            {
-                "season": season_name,
-                "metric": "corr_d",
-                "min_valid": min_valid,
-                "window_days": window,
-                **corr_d_stats,
-                "file": str(out_nc_corr_d) if save_netcdf else "",
-            }
-        )
-
-        summary_rows_corr_m.append(
-            {
-                "season": season_name,
-                "metric": "corr_m",
-                "min_valid": min_valid,
-                **corr_m_stats,
-                "file": str(out_nc_corr_m) if save_netcdf else "",
-            }
-        )
-
-        if save_netcdf:
-            print(f"Saved: {out_nc_corr_d}")
-            print(f"Saved: {out_nc_corr_m}")
-
-        print(
-            f"  CORR D mean={corr_d_stats['mean']:.4f}, "
-            f"min={corr_d_stats['min']:.4f}, "
-            f"max={corr_d_stats['max']:.4f}"
-        )
-        print(
-            f"  CORR M mean={corr_m_stats['mean']:.4f}, "
-            f"min={corr_m_stats['min']:.4f}, "
-            f"max={corr_m_stats['max']:.4f}"
-        )
-
-    if save_summary_csv_flag:
-        save_summary_csv(
-            summary_rows_corr_d,
-            corr_d_data_dir / "corr_d_summary.csv",
-        )
-        save_summary_csv(
-            summary_rows_corr_m,
-            corr_m_data_dir / "corr_m_summary.csv",
-        )
-        print(f"\nSaved summary CSV: {corr_d_data_dir / 'corr_d_summary.csv'}")
-        print(f"Saved summary CSV: {corr_m_data_dir / 'corr_m_summary.csv'}")
-
-    print("\nAll correlation products saved successfully.")
+    print("\nAll correlation figures saved successfully.")
 
 
 if __name__ == "__main__":

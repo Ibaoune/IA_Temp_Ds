@@ -46,7 +46,7 @@ training:
     num_groups: 32
   validation:
     enable: true
-    pecentage: 0.2
+    percentage: 0.2
 
 glm:
   n_neighbors: 4 # or 1

@@ -51,7 +51,7 @@ class Config:
         self.target = str(cfg_dict["general"].get("target"))
         self.src = str(cfg_dict["general"].get("src"))
         self.model_type = str(cfg_dict["general"]["model_type"]).lower()
-        allowed_models = {"cnn", "glm", "unet"}
+        allowed_models = {"cnn", "glm", "unet", "unet1"}
         if self.model_type not in allowed_models:
             raise ValueError(
                 f"Unsupported model_type '{self.model_type}'. "
