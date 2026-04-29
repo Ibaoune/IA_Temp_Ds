@@ -32,12 +32,12 @@ echo "======================================"
 
 if [[ "$train" == "yes" ]]; then
     echo "[INFO] Running training..."
-    python3 -u ../train.py ../configs/unet/test.yaml
+    python3 -u temp/main/train.py temp/main/configs/unet1/test.yaml
 fi
 
 if [[ "$validation" == "yes" ]]; then
     echo "[INFO] Running validation..."
-    python3 -u ../eval.py ../configs/unet/test.yaml
+    python3 -u temp/main/eval.py temp/main/configs/unet1/test.yaml
 fi
 
 if [[ "$train" != "yes" && "$validation" != "yes" ]]; then
