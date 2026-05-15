@@ -1,5 +1,5 @@
 project:
-  main_config_path: "./temp/main/configs/unet/config.yaml"
+  main_config_path: "./temp/main/configs/unet1/config.yaml"
 
 metric:
   name: "ac1"

@@ -75,6 +75,17 @@ def resolve_from_project_root(path_value: str | None) -> Path | None:
         return p
     return (PROJECT_ROOT / p).resolve()
 
+def get_target_display_name(cfg):
+    target = str(cfg.target).lower()
+
+    if target == "mswt":
+        return "MSWT"
+    elif target == "lmdz35":
+        return "LMDZ35"
+    elif target == "lmdz":
+        return "LMDZ"
+    else:
+        return target.upper()
 
 # =========================================================
 # File helpers
@@ -117,6 +128,7 @@ def plot_std_comparison_panel(
     lat_min: float,
     lat_max: float,
     model_label: str,
+    reference_label: str,
     fig_path: Path,
     robust: bool = True,
     show: bool = False,
@@ -159,7 +171,7 @@ def plot_std_comparison_panel(
     )
 
     arrays = [obs_masked, pred_masked]
-    titles = ["Observed std", f"{model_label} std"]
+    titles = [f"{reference_label} std", f"{model_label} std"]
 
     for i, ax in enumerate(axes):
         arr = arrays[i]
@@ -202,7 +214,7 @@ def plot_std_comparison_panel(
     cbar.set_ticks(tick_positions)
 
     plt.suptitle(
-        f"Annual variability amplitude: Observation vs {model_label}",
+        f"Annual variability amplitude: {reference_label} vs {model_label}",
         fontsize=style.title_fontsize + 3,
         fontweight="bold",
         y=0.97,
@@ -407,11 +419,13 @@ def main():
     std_pred, std_obs, rstd, lons, lats = load_rstd_fields(annual_path)
 
     print("[STEP] Plotting annual standard deviation comparison")
+    reference_label = get_target_display_name(cfg)
     plot_std_comparison_panel(
         std_obs=std_obs,
         std_pred=std_pred,
         lons=lons,
         lats=lats,
+        reference_label=reference_label,
         shapefile_path=cfg.shapefile_path,
         lon_min=cfg.lon_min,
         lon_max=cfg.lon_max,

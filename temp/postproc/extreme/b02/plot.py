@@ -114,6 +114,17 @@ def load_b02_fields(
         ds["lat"].values,
     )
 
+def get_target_display_name(cfg):
+    target = str(cfg.target).lower()
+
+    if target == "mswt":
+        return "MSWT"
+    elif target == "lmdz35":
+        return "LMDZ35"
+    elif target == "lmdz":
+        return "LMDZ"
+    else:
+        return target.upper()
 
 # =========================================================
 # Annual comparison panel
@@ -129,6 +140,7 @@ def plot_p02_comparison_panel(
     lat_min: float,
     lat_max: float,
     model_label: str,
+    reference_label: str,
     fig_path: Path,
     robust: bool = True,
     show: bool = False,
@@ -173,7 +185,7 @@ def plot_p02_comparison_panel(
     )
 
     arrays = [obs_masked, pred_masked]
-    titles = ["Observed P02", f"{model_label} P02"]
+    titles = [f"{reference_label} P02", f"{model_label} P02"]
 
     for i, ax in enumerate(axes):
         arr = arrays[i]
@@ -216,7 +228,7 @@ def plot_p02_comparison_panel(
     cbar.set_ticks(tick_positions)
 
     plt.suptitle(
-        f"Annual P02 temperature: Observation vs {model_label}",
+        f"Annual P02 temperature: {reference_label} vs {model_label}",
         fontsize=style.title_fontsize + 3,
         fontweight="bold",
         y=0.97,
@@ -280,6 +292,8 @@ def main():
             print("[STEP] Plotting annual P02 comparison")
             p02_pred, p02_obs, annual_b02, annual_lons, annual_lats = load_b02_fields(annual_path)
 
+            reference_label = get_target_display_name(cfg)
+
             plot_p02_comparison_panel(
                 p02_obs=p02_obs,
                 p02_pred=p02_pred,
@@ -291,6 +305,7 @@ def main():
                 lat_min=cfg.lat_min,
                 lat_max=cfg.lat_max,
                 model_label=str(cfg.model_type).upper(),
+                reference_label=reference_label,
                 fig_path=plot_dir / "annual_p02_comparison.png",
                 robust=args.robust,
                 show=args.show,

@@ -1,14 +1,14 @@
 ###########################################################
-# GLM configuration
+# UNet configuration
 ###########################################################
 
 general:
   verbose: true
-  experiment: "glm_temperature"
+  experiment: "unet1_lmdz250_to_lmdz35" # for "unet_temperature" or "unet1_temperature"
   variable: "temp"
-  target: "mswt"
-  src: "era5"
-  model_type: "glm"
+  target: "lmdz35"
+  src: "lmdz250"
+  model_type: "unet1" # for "unet" or "unet1"
   interpolation_type: "linear"
   variables: ["z", "q", "t", "u", "v"]
   levels: [500, 700, 850, 1000]
@@ -16,7 +16,7 @@ general:
 
 training:
   learning_rate: 1e-3
-  epochs: 50
+  epochs: 30
   batch_size: 4 # le nombre d’exemples envoyés au modèle en une seule itération.
   loss_type: "gaussian" 
   norm_mode: "gridbox"         
@@ -34,7 +34,7 @@ training:
   weight_decay: # régularisation pour éviter le surapprentissage.
     enable: true
     value: 1e-4
-  optimizer: "adamw"
+  optimizer: "adam"
   dropout:
     enable: true
     value: 0.1
@@ -43,13 +43,10 @@ training:
     type: "cosine"
   group_norm:
     enable: true
-    num_groups: 32
+    num_groups: 8
   validation:
-    enable: true
+    enable: false
     percentage: 0.2
-
-glm:
-  n_neighbors: 1 # or 1
 
 region:
   lon_min: -18
@@ -60,17 +57,14 @@ region:
 dates:
   train:
     start: "1980-01-01"
-    end: "1984-12-31"
+    end: "1982-12-31"
   test:
-    start: "1985-01-01"
-    end: "1985-12-31"
+    start: "1983-01-01"
+    end: "1983-12-31"
 
 paths:
   root_dir: ""
-  results_dir: "./temp/results/"
+  results_dir: "./temp/results_test_app1/"
   shapefile_path: "./morocco_shapefile/morocco_unified_fixed_v2.shp"
-  era5_predictor_pattern: "./DATA1/predictors_era5/{var}_1979-2020_levels.nc"
-  mswt_path: "./DATA1/predictand_mswet/mswt_1979_2020.nc"
-
-
-
+  lmdz250_predictor_pattern: "./DATA1/lmdz_250/present/all_Mor/{lmdz_var}-{suffix}.nc"
+  lmdz35_path: "./DATA1/predictand_lmdz/t2m_hist_ATM_DA_1979-2014_lat19to38_lon-20to1.nc"

@@ -5,11 +5,15 @@ results/
 climate_env/
 temp/results/
 temp/results_test/
+temp/results_test_app1/
+temp/results_test_app2/
 temp/exploration/
 temp/postproc/mean/QQ/
 temp/prediction/
 quick_hist_summary.csv
+glm_pixel_explanation.csv
 temp/XAI/
+temp/main/inspect_glm.py
 # Python
 __pycache__/
 *.py[cod]

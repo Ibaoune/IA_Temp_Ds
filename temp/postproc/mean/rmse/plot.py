@@ -239,6 +239,7 @@ def main():
     metric_name = metric_cfg["metric"].get("name", "rmse")
     strategy = metric_cfg["metric"].get("strategy", "daily_first")
     return_by_year = bool(metric_cfg["metric"].get("return_by_year", False))
+    exp_label = f"{cfg.src.upper()} → {cfg.target.upper()} | {cfg.model_type.upper()}"
     selected_seasons = metric_cfg["metric"].get(
         "seasons", ["Annual", "DJF", "MAM", "JJA", "SON"]
     )
@@ -274,7 +275,7 @@ def main():
                 arr=annual_arr,
                 lons=annual_lons,
                 lats=annual_lats,
-                title="Annual temperature RMSE",
+                title=f"Annual temperature RMSE\n{exp_label}",
                 fig_path=plot_dir / f"annual_rmse_map_{strategy}.png",
                 shapefile_path=cfg.shapefile_path,
                 lon_min=cfg.lon_min,
@@ -324,7 +325,7 @@ def main():
             arr=arr,
             lons=lons,
             lats=lats,
-            title=f"{SEASON_TITLES[season]} temperature RMSE",
+            title=f"{SEASON_TITLES[season]} temperature RMSE\n{exp_label}",
             fig_path=plot_dir / f"rmse_{season.lower()}_map_{strategy}.png",
             shapefile_path=cfg.shapefile_path,
             lon_min=cfg.lon_min,

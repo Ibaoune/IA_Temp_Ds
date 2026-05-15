@@ -31,6 +31,29 @@ from src.core.utils import vprint
 #              Helpers
 # -------------------------------------
 
+def _get_temperature_target_var(ds, target):
+    """
+    Choose the target variable name from cfg.target.
+    No target_var is needed in YAML.
+    """
+    target = target.lower()
+
+    if target == "mswt":
+        candidates = ["air_temperature", "t2m", "temp", "tas"]
+    elif target == "lmdz35":
+        candidates = ["temp", "tas", "air_temperature", "t2m"]
+    else:
+        candidates = ["air_temperature", "t2m", "temp", "tas"]
+
+    for name in candidates:
+        if name in ds.data_vars:
+            return name
+
+    raise KeyError(
+        f"No known temperature variable found for target='{target}'. "
+        f"Available variables: {list(ds.data_vars)}"
+    )
+
 def _is_daily_time_index(time_index):
     """
     Returns True if the time_index spacing is (approximately) 1 day.
@@ -139,7 +162,7 @@ def _relative_to_specific_humidity(rh, temp_k, pressure_level):
     return q
 
 
-def _load_lmdz_q_from_rh(cfg, levels, base_dir, suffix):
+def _load_lmdz_q_from_rh(cfg, levels, base_dir, suffix, file_pattern=None):
     """
     Build LMDZ specific humidity q from relative humidity (rhum) + temperature (temp).
     Returns a list of processed level arrays ready for concat.
@@ -149,12 +172,16 @@ def _load_lmdz_q_from_rh(cfg, levels, base_dir, suffix):
     rh_name = cfg.lmdz_var_map.get("q", "rhum")
     t_name = cfg.lmdz_var_map.get("t", "temp")
 
-    rh_file = cfg.lmdz_predictor_pattern.format(
+    if file_pattern is None:
+        file_pattern = getattr(cfg, "predictor_pattern", cfg.lmdz_predictor_pattern)
+
+    rh_file = file_pattern.format(
         folder=base_dir.rstrip("/"),
         lmdz_var=rh_name,
         suffix=suffix
     )
-    t_file = cfg.lmdz_predictor_pattern.format(
+
+    t_file = file_pattern.format(
         folder=base_dir.rstrip("/"),
         lmdz_var=t_name,
         suffix=suffix
@@ -244,8 +271,11 @@ def _process_level_array(cfg, arr, var, lev, curr_time_dim, curr_lev_dim):
     arr = arr.rename(rename_dict)
 
     # Explicitly drop the level coordinate to avoid MergeError during concat
-    if curr_lev_dim in arr.coords:
-        arr = arr.drop_vars(curr_lev_dim)
+    if curr_lev_dim is not None:
+        if curr_lev_dim in arr.coords:
+            arr = arr.drop_vars(curr_lev_dim, errors="ignore")
+        if curr_lev_dim in arr.dims:
+            arr = arr.squeeze(drop=True)
 
     arr = arr.transpose("time", "lat", "lon")
     
@@ -293,13 +323,9 @@ def load_datasets(cfg):
     elif cfg.variable == "temp":
         pr_file = cfg.target_path
         ds_temp_check = xr.open_dataset(pr_file)
-        if "air_temperature" in ds_temp_check.data_vars:
-            target_var = "air_temperature"
-        elif "t2m" in ds_temp_check.data_vars:
-            target_var = "t2m"
-        else:
-            target_var = "tas"
-        
+
+        target_var = _get_temperature_target_var(ds_temp_check, cfg.target)
+
         time_dim = "time" if "time" in ds_temp_check.dims else "time_counter"
         ds_temp_check.close()
     else:
@@ -363,93 +389,247 @@ def load_datasets(cfg):
     variables = cfg.variables
     levels = cfg.levels
     data_arrays = []
-    lmdz_var_map = cfg.lmdz_var_map
+    lmdz_var_map = getattr(cfg, "lmdz_var_map", {})
+
+    # Default mapping for raw LMDZ files
+    # z/q/t/u/v are the generic names used in the config,
+    # while geop/rhum/temp/vitu/vitv are the real LMDZ filenames.
+    if not lmdz_var_map:
+        lmdz_var_map = {
+            "z": "geop",
+            "q": "rhum",
+            "t": "temp",
+            "u": "vitu",
+            "v": "vitv",
+        }
 
     for var in variables:
-        lmdz_var = lmdz_var_map.get(var.lower(), var.lower())
-        
-        if cfg.src == "lmdz":
-            base_dir = getattr(cfg, "folder", cfg.bc_reference_folder).rstrip("/") + "/"
-            suffix = "hist" 
+        var_key = var.lower()
+
+        # --------------------------------------------------
+        # Choose predictor pattern
+        # --------------------------------------------------
+        file_pattern = getattr(cfg, "predictor_pattern", "")
+
+        if not file_pattern:
+            raise ValueError(
+                f"No predictor pattern found for src='{cfg.src}'. "
+                "Check config.py and YAML paths."
+            )
+
+        # --------------------------------------------------
+        # Detect raw LMDZ format
+        # Raw LMDZ files use {lmdz_var}, for example:
+        # geop-hist.nc, rhum-hist.nc, temp-hist.nc, ...
+        # --------------------------------------------------
+        is_raw_lmdz = (
+            cfg.src in ["lmdz", "lmdz250", "lmdz35"]
+            and "{lmdz_var}" in file_pattern
+        )
+
+        if is_raw_lmdz:
+            lmdz_var = lmdz_var_map.get(var_key, var_key)
+
+            folder_value = getattr(
+                cfg,
+                "folder",
+                getattr(cfg, "bc_reference_folder", "")
+            )
+
+            base_dir = folder_value.rstrip("/")
+            suffix = "hist"
+
+            # Keep this for historical/future LMDZ cases
+            search_text = f"{base_dir} {file_pattern}".lower()
             for s in ["ssp245", "ssp585"]:
-                if s in base_dir.lower():
+                if s in search_text:
                     suffix = s
                     break
-            file_pattern = cfg.lmdz_predictor_pattern
-        else:
-            base_dir = None
-            suffix = None
-            file_pattern = cfg.era5_predictor_pattern
 
-        # Special case: q must be reconstructed from RH + T for LMDZ
-        if cfg.src == "lmdz" and var.lower() == "q":
-            q_arrays = _load_lmdz_q_from_rh(cfg, levels, base_dir, suffix)
-            data_arrays.extend(q_arrays)
-            continue
+            # q is not directly stored as q in raw LMDZ.
+            # It must be reconstructed from rhum + temp.
+            if var_key == "q":
+                q_arrays = _load_lmdz_q_from_rh(
+                    cfg,
+                    levels,
+                    base_dir,
+                    suffix,
+                    file_pattern=file_pattern
+                )
+                data_arrays.extend(q_arrays)
+                continue
+
+        else:
+            # Harmonized format:
+            # z_1979-2020_levels.nc, q_1979-2020_levels.nc, ...
+            lmdz_var = var_key
+            base_dir = ""
+            suffix = "hist"
 
         is_level_specific = "{level}" in file_pattern or "{lev}" in file_pattern
 
         if not is_level_specific:
-            # Merged variable files
-            if cfg.src == "lmdz":
-                filename = file_pattern.format(folder=base_dir.rstrip("/"), lmdz_var=lmdz_var, suffix=suffix)
-            else:
-                filename = file_pattern.format(var=var.lower())
+            # Merged variable files:
+            # Example raw LMDZ:
+            #   geop-hist.nc, rhum-hist.nc, temp-hist.nc
+            # Example harmonized:
+            #   z_1979-2020_levels.nc, q_1979-2020_levels.nc
+
+            filename = file_pattern.format(
+                folder=base_dir,
+                lmdz_var=lmdz_var,
+                var=var_key,
+                suffix=suffix
+            )
 
             vprint(f"Loading merged variable file: {filename}...")
+
             if not os.path.exists(filename):
                 vprint(f"  → FILE NOT FOUND: {filename}")
                 continue
 
             try:
                 ds_full = xr.open_dataset(filename)
-                curr_lev_dim = next((d for d in ["presnivs", "plev", "level"] if d in ds_full.dims), "level")
-                curr_time_dim = next((d for d in ["time_counter", "time"] if d in ds_full.dims), "time")
 
-                for lev in levels:
-                    vprint(f"  → Extracting level {lev} from {var}")
-                    ds = use.mask_dataset(ds_full, slice(cfg.lon_min, cfg.lon_max), slice(cfg.lat_min, cfg.lat_max))
-                    actual_var = next((v for v in ds.data_vars if v.lower() == lmdz_var.lower()), list(ds.data_vars)[0])
-                    arr = ds[actual_var].sel({curr_lev_dim: lev}, method="nearest").squeeze()
+                curr_lev_dim = next(
+                    (d for d in ["presnivs", "plev", "level", "lev"] if d in ds_full.dims),
+                    None
+                )
 
-                    # Convert temperature to Celsius for both LMDZ and ERA5 if stored in Kelvin
-                    if var.lower() == "t":
-                        arr_units = arr.attrs.get("units", "")
-                        if arr_units in ["K", "kelvin", "Kelvin"]:
-                            arr = arr - 273.15
-                            arr.attrs["units"] = "degree_Celsius"
-                    
-                    p_arr = _process_level_array(cfg, arr, var, lev, curr_time_dim, curr_lev_dim)
-                    if p_arr is not None: data_arrays.append(p_arr)
+                curr_time_dim = next(
+                    (d for d in ["time_counter", "time", "valid_time"] if d in ds_full.dims),
+                    "time"
+                )
+
+                ds = use.mask_dataset(
+                    ds_full,
+                    slice(cfg.lon_min, cfg.lon_max),
+                    slice(cfg.lat_min, cfg.lat_max)
+                )
+
+                # Find variable inside NetCDF.
+                # For raw LMDZ, we expect geop/rhum/temp/vitu/vitv.
+                # For harmonized files, we expect z/q/t/u/v.
+                # If not found, we take the first data variable.
+                actual_var = next(
+                    (v for v in ds.data_vars if v.lower() == lmdz_var.lower()),
+                    list(ds.data_vars)[0]
+                )
+
+                if curr_lev_dim is not None:
+                    for lev in levels:
+                        vprint(f"  → Extracting level {lev} from {var}")
+
+                        arr = ds[actual_var].sel(
+                            {curr_lev_dim: lev},
+                            method="nearest"
+                        ).squeeze()
+
+                        # Convert temperature predictor to Celsius if stored in Kelvin
+                        if var_key == "t":
+                            arr_units = arr.attrs.get("units", "")
+                            if arr_units in ["K", "kelvin", "Kelvin"]:
+                                arr = arr - 273.15
+                                arr.attrs["units"] = "degree_Celsius"
+
+                        p_arr = _process_level_array(
+                            cfg,
+                            arr,
+                            var,
+                            lev,
+                            curr_time_dim,
+                            curr_lev_dim
+                        )
+
+                        if p_arr is not None:
+                            data_arrays.append(p_arr)
+
+                else:
+                    # If no vertical level exists, treat variable as a single channel
+                    vprint(f"  → Processing {var} without vertical level")
+
+                    arr = ds[actual_var].squeeze()
+
+                    p_arr = _process_level_array(
+                        cfg,
+                        arr,
+                        var,
+                        "surface",
+                        curr_time_dim,
+                        None
+                    )
+
+                    if p_arr is not None:
+                        data_arrays.append(p_arr)
+
                 ds_full.close()
+
             except Exception as e:
                 vprint(f"  ERROR: {e}")
 
         else:
-            # Level-specific files
+            # Level-specific files:
+            # Example:
+            #   z_500.nc, z_700.nc, ...
+            # or:
+            #   geop_500-hist.nc, geop_700-hist.nc, ...
+
             for lev in levels:
-                if cfg.src == "lmdz":
-                    filename = file_pattern.format(folder=base_dir.rstrip("/"), lmdz_var=lmdz_var, suffix=suffix, level=lev, lev=lev)
-                else:
-                    filename = file_pattern.format(var=var.lower(), level=lev, lev=lev)
+                filename = file_pattern.format(
+                    folder=base_dir,
+                    lmdz_var=lmdz_var,
+                    var=var_key,
+                    suffix=suffix,
+                    level=lev,
+                    lev=lev
+                )
 
                 vprint(f"Loading level file: {filename}...")
+
                 if not os.path.exists(filename):
                     vprint(f"  → FILE NOT FOUND: {filename}")
                     continue
 
                 try:
                     ds = xr.open_dataset(filename).squeeze()
-                    curr_time_dim = next((d for d in ["time_counter", "time"] if d in ds.dims), "time")
-                    curr_lev_dim = next((d for d in ["presnivs", "plev", "level"] if d in ds.dims), "level")
-                    
-                    ds = use.mask_dataset(ds, slice(cfg.lon_min, cfg.lon_max), slice(cfg.lat_min, cfg.lat_max))
-                    actual_var = next((v for v in ds.data_vars if v.lower() == lmdz_var.lower()), list(ds.data_vars)[0])
+
+                    curr_time_dim = next(
+                        (d for d in ["time_counter", "time", "valid_time"] if d in ds.dims),
+                        "time"
+                    )
+
+                    curr_lev_dim = next(
+                        (d for d in ["presnivs", "plev", "level", "lev"] if d in ds.dims),
+                        None
+                    )
+
+                    ds = use.mask_dataset(
+                        ds,
+                        slice(cfg.lon_min, cfg.lon_max),
+                        slice(cfg.lat_min, cfg.lat_max)
+                    )
+
+                    actual_var = next(
+                        (v for v in ds.data_vars if v.lower() == lmdz_var.lower()),
+                        list(ds.data_vars)[0]
+                    )
+
                     arr = ds[actual_var].squeeze()
 
-                    p_arr = _process_level_array(cfg, arr, var, lev, curr_time_dim, curr_lev_dim)
-                    if p_arr is not None: data_arrays.append(p_arr)
+                    p_arr = _process_level_array(
+                        cfg,
+                        arr,
+                        var,
+                        lev,
+                        curr_time_dim,
+                        curr_lev_dim
+                    )
+
+                    if p_arr is not None:
+                        data_arrays.append(p_arr)
+
                     ds.close()
+
                 except Exception as e:
                     vprint(f"  ERROR: {e}")
 

@@ -1,10 +1,10 @@
 project:
-  main_config_path: "./temp/main/configs/unet1/config.yaml"
+  main_config_path: "./temp/main/configs/unet1/lmdz250_to_lmdz35.yaml"
 
 metric:
-  name: "b02"
-  quantile: 0.02
-  min_valid: 10
+  name: "correlation"
+  min_valid: 1
+  window: 31
   seasons: ["Annual", "DJF", "MAM", "JJA", "SON"]
 
 data:
@@ -13,7 +13,7 @@ data:
   prediction_units: null
 
   reference_path: null
-  reference_var: null
+  reference_var: "t2m"
   reference_units: null
 
 time:

@@ -95,7 +95,17 @@ def get_warm_spell_cmap(n_colors: int) -> mcolors.Colormap:
     ]
     return mcolors.LinearSegmentedColormap.from_list("warm_spell", colors, N=n_colors)
 
+def get_target_display_name(cfg):
+    target = str(cfg.target).lower()
 
+    if target == "mswt":
+        return "MSWT"
+    elif target == "lmdz35":
+        return "LMDZ35"
+    elif target == "lmdz":
+        return "LMDZ"
+    else:
+        return target.upper()
 # =========================================================
 # File helpers
 # =========================================================
@@ -137,6 +147,7 @@ def plot_wams_comparison_panel(
     lat_min: float,
     lat_max: float,
     model_label: str,
+    reference_label: str,
     fig_path: Path,
     robust: bool = True,
     show: bool = False,
@@ -179,7 +190,7 @@ def plot_wams_comparison_panel(
     )
 
     arrays = [obs_masked, pred_masked]
-    titles = ["Observed WAMS", f"{model_label} WAMS"]
+    titles = [f"{reference_label} WAMS", f"{model_label} WAMS"]
 
     for i, ax in enumerate(axes):
         arr = arrays[i]
@@ -222,7 +233,7 @@ def plot_wams_comparison_panel(
     cbar.set_ticks(tick_positions)
 
     plt.suptitle(
-        f"Annual WAMS: Observation vs {model_label}",
+        f"Annual WAMS: {reference_label} vs {model_label}",
         fontsize=style.title_fontsize + 3,
         fontweight="bold",
         y=0.97,
@@ -278,6 +289,7 @@ def main():
     wams_pred, wams_obs, bwams, lons, lats = load_wams_fields(annual_path)
 
     print("[STEP] Plotting annual WAMS comparison")
+    reference_label = get_target_display_name(cfg)
     plot_wams_comparison_panel(
         wams_obs=wams_obs,
         wams_pred=wams_pred,
@@ -289,6 +301,7 @@ def main():
         lat_min=cfg.lat_min,
         lat_max=cfg.lat_max,
         model_label=str(cfg.model_type).upper(),
+        reference_label=reference_label,
         fig_path=plot_dir / "annual_wams_comparison.png",
         robust=args.robust,
         show=args.show,

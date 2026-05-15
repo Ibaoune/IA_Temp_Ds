@@ -122,7 +122,17 @@ def load_cams_fields(
         ds["lat"].values,
     )
 
+def get_target_display_name(cfg):
+    target = str(cfg.target).lower()
 
+    if target == "mswt":
+        return "MSWT"
+    elif target == "lmdz35":
+        return "LMDZ35"
+    elif target == "lmdz":
+        return "LMDZ"
+    else:
+        return target.upper()
 # =========================================================
 # Comparison panel
 # =========================================================
@@ -137,6 +147,7 @@ def plot_cams_comparison_panel(
     lat_min: float,
     lat_max: float,
     model_label: str,
+    reference_label: str,
     fig_path: Path,
     robust: bool = True,
     show: bool = False,
@@ -179,7 +190,7 @@ def plot_cams_comparison_panel(
     )
 
     arrays = [obs_masked, pred_masked]
-    titles = ["Observed CAMS", f"{model_label} CAMS"]
+    titles = [f"{reference_label} CAMS", f"{model_label} CAMS"]
 
     for i, ax in enumerate(axes):
         arr = arrays[i]
@@ -222,7 +233,7 @@ def plot_cams_comparison_panel(
     cbar.set_ticks(tick_positions)
 
     plt.suptitle(
-        f"Annual CAMS: Observation vs {model_label}",
+        f"Annual CAMS: {reference_label} vs {model_label}",
         fontsize=style.title_fontsize + 3,
         fontweight="bold",
         y=0.97,
@@ -276,7 +287,8 @@ def main():
 
     print("[STEP] Loading CAMS fields")
     cams_pred, cams_obs, bcams, lons, lats = load_cams_fields(annual_path)
-
+    reference_label = get_target_display_name(cfg)
+    
     print("[STEP] Plotting annual CAMS comparison")
     plot_cams_comparison_panel(
         cams_obs=cams_obs,
@@ -288,6 +300,7 @@ def main():
         lon_max=cfg.lon_max,
         lat_min=cfg.lat_min,
         lat_max=cfg.lat_max,
+        reference_label=reference_label,
         model_label=str(cfg.model_type).upper(),
         fig_path=plot_dir / "annual_cams_comparison.png",
         robust=args.robust,

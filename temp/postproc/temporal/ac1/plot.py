@@ -95,7 +95,17 @@ def resolve_from_project_root(path_value: str | None) -> Path | None:
         return p
     return (PROJECT_ROOT / p).resolve()
 
+def get_target_display_name(cfg):
+    target = str(cfg.target).lower()
 
+    if target == "mswt":
+        return "MSWT"
+    elif target == "lmdz35":
+        return "LMDZ35"
+    elif target == "lmdz":
+        return "LMDZ"
+    else:
+        return target.upper()
 # =========================================================
 # File helpers
 # =========================================================
@@ -137,6 +147,7 @@ def plot_ac1_comparison_panel(
     lat_min: float,
     lat_max: float,
     model_label: str,
+    reference_label: str,
     fig_path: Path,
     vmin: float = 0.0,
     vmax: float = 1.0,
@@ -168,7 +179,7 @@ def plot_ac1_comparison_panel(
     )
 
     arrays = [obs_masked, pred_masked]
-    titles = ["Observed AC1", f"{model_label} AC1"]
+    titles = [f"{reference_label} AC1", f"{model_label} AC1"]
 
     for i, ax in enumerate(axes):
         arr = arrays[i]
@@ -211,7 +222,7 @@ def plot_ac1_comparison_panel(
     cbar.set_ticks(tick_positions)
 
     plt.suptitle(
-        f"Annual AC1: Observation vs {model_label}",
+        f"Annual AC1: {reference_label} vs {model_label}",
         fontsize=style.title_fontsize + 3,
         fontweight="bold",
         y=0.97,
@@ -267,6 +278,7 @@ def main():
     ac1_pred, ac1_obs, bac1, lons, lats = load_ac1_fields(annual_path)
 
     print("[STEP] Plotting annual AC1 comparison")
+    reference_label = get_target_display_name(cfg)
     plot_ac1_comparison_panel(
         ac1_obs=ac1_obs,
         ac1_pred=ac1_pred,
@@ -278,6 +290,7 @@ def main():
         lat_min=cfg.lat_min,
         lat_max=cfg.lat_max,
         model_label=str(cfg.model_type).upper(),
+        reference_label=reference_label,
         fig_path=plot_dir / "annual_ac1_comparison.png",
         vmin=args.vmin,
         vmax=args.vmax,

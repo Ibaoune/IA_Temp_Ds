@@ -232,6 +232,7 @@ def plot_one_corr_type(
     print(f"Output plot dir : {plot_dir}")
 
     if corr_type == "corr_d":
+        exp_label = f"{cfg.src.upper()} → {cfg.target.upper()} | {cfg.model_type.upper()}"
         full_title = "daily deseasonalized correlation"
         map_title = "Daily deseasonalized correlation (CORR D)"
     else:
@@ -257,7 +258,7 @@ def plot_one_corr_type(
                 arr=annual_arr,
                 lons=annual_lons,
                 lats=annual_lats,
-                title=f"Annual {map_title}",
+                title=f"Annual {map_title}\n{exp_label}",
                 fig_path=plot_dir / f"annual_{corr_type}_map.png",
                 shapefile_path=cfg.shapefile_path,
                 lon_min=cfg.lon_min,
@@ -315,7 +316,7 @@ def plot_one_corr_type(
             arr=arr,
             lons=lons,
             lats=lats,
-            title=f"{SEASON_TITLES[season]} {full_title}",
+            title=f"{SEASON_TITLES[season]} {full_title}\n{exp_label}",
             fig_path=plot_dir / f"{corr_type}_{season.lower()}_map.png",
             shapefile_path=cfg.shapefile_path,
             lon_min=cfg.lon_min,
@@ -353,7 +354,7 @@ def plot_one_corr_type(
             lat_max=cfg.lat_max,
             fig_path=plot_dir / f"seasonal_{corr_type}_panel.png",
             season_titles=[SEASON_TITLES[s] for s in seasonal_labels],
-            title=f"Seasonal {full_title}",
+            title=f"Seasonal {full_title}\n{exp_label}",
             unit="Correlation",
             n_bins=10,
             robust=robust,

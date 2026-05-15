@@ -52,7 +52,7 @@ def _detect_units_from_source(cfg):
     elif variable == "temp":
         if target in ["mswt"]:
             return "degree_Celsius"
-        elif target in ["era5", "lmdz", "tas"]:
+        elif target in ["era5", "lmdz", "tas", "lmdz35"]:
             return "K"
         else:
             vprint(f"Warning: unknown temperature target '{cfg.target}', units unclear")

@@ -105,6 +105,24 @@ def _build_model(cfg, x_test, y_test):
     else:
         raise NotImplementedError(f"Model {cfg.model_type} not supported")
 
+def _get_target_display_name(cfg):
+    """
+    Return a clean display name for the target dataset.
+    Used only for plots and labels.
+    """
+    target = str(cfg.target).lower()
+
+    if target == "mswt":
+        return "MSWT"
+    elif target == "lmdz35":
+        return "LMDZ35"
+    elif target == "lmdz":
+        return "LMDZ"
+    elif target == "mswep":
+        return "MSWEP"
+    else:
+        return target.upper()
+
 def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
     vprint("=== Starting evaluation ===")
 
@@ -203,7 +221,7 @@ def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
 
     out_nc = os.path.join(
         path_out_data,
-        f"{cfg.model_type}_predictions_era5_to_{cfg.target}.nc"
+        f"{cfg.model_type}_predictions_{cfg.target}.nc"
     )
     ds_pred.to_netcdf(out_nc)
 
@@ -229,6 +247,8 @@ def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
     os.makedirs(path_out_figs, exist_ok=True)
 
     vprint("Generating plots...")
+
+    target_display_name = _get_target_display_name(cfg)
 
     plot_title_suffix = use.format_components_for_title(
         src=cfg.src,
@@ -277,7 +297,7 @@ def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
         model_name=cfg.model_type.upper(),
         filename=os.path.join(path_out_figs, "spatial_distribution.png"),
         title_suffix=plot_title_suffix,
-        y_name="MSWT",
+        y_name=target_display_name,
         y_var="air_temperature",
         model_var="air_temperature",
     )
@@ -287,7 +307,7 @@ def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
         y_test_ds,
         model_name=cfg.model_type.upper(),
         filename=os.path.join(path_out_figs, "monthly_means.png"),
-        y_name="MSWT",
+        y_name=target_display_name,
         y_var="air_temperature",
         model_var="air_temperature",
         title="Monthly Average Temperature (°C)",

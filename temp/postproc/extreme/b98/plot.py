@@ -87,6 +87,17 @@ def resolve_from_project_root(path_value: str | None) -> Path | None:
         return p
     return (PROJECT_ROOT / p).resolve()
 
+def get_target_display_name(cfg):
+    target = str(cfg.target).lower()
+
+    if target == "mswt":
+        return "MSWT"
+    elif target == "lmdz35":
+        return "LMDZ35"
+    elif target == "lmdz":
+        return "LMDZ"
+    else:
+        return target.upper()
 
 # =========================================================
 # File helpers
@@ -129,6 +140,7 @@ def plot_p98_comparison_panel(
     lat_min: float,
     lat_max: float,
     model_label: str,
+    reference_label: str,
     fig_path: Path,
     robust: bool = True,
     show: bool = False,
@@ -173,7 +185,7 @@ def plot_p98_comparison_panel(
     )
 
     arrays = [obs_masked, pred_masked]
-    titles = ["Observed P98", f"{model_label} P98"]
+    titles = [f"{reference_label} P98", f"{model_label} P98"]
 
     for i, ax in enumerate(axes):
         arr = arrays[i]
@@ -216,7 +228,7 @@ def plot_p98_comparison_panel(
     cbar.set_ticks(tick_positions)
 
     plt.suptitle(
-        f"Annual P98 temperature: Observation vs {model_label}",
+        f"Annual P98 temperature: {reference_label} vs {model_label}",
         fontsize=style.title_fontsize + 3,
         fontweight="bold",
         y=0.97,
@@ -279,6 +291,7 @@ def main():
         if annual_path is not None:
             print("[STEP] Plotting annual P98 comparison")
             p98_pred, p98_obs, annual_b98, annual_lons, annual_lats = load_b98_fields(annual_path)
+            reference_label = get_target_display_name(cfg)
 
             plot_p98_comparison_panel(
                 p98_obs=p98_obs,
@@ -291,6 +304,7 @@ def main():
                 lat_min=cfg.lat_min,
                 lat_max=cfg.lat_max,
                 model_label=str(cfg.model_type).upper(),
+                reference_label=reference_label,
                 fig_path=plot_dir / "annual_p98_comparison.png",
                 robust=args.robust,
                 show=args.show,

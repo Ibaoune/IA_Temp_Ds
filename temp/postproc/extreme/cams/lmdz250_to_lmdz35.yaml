@@ -1,11 +1,12 @@
 project:
-  main_config_path: "./temp/main/configs/unet1/config.yaml"
+  main_config_path: "./temp/main/configs/unet1/lmdz250_to_lmdz35.yaml"
 
 metric:
-  name: "b02"
-  quantile: 0.02
-  min_valid: 10
-  seasons: ["Annual", "DJF", "MAM", "JJA", "SON"]
+  name: "cams"
+  threshold_quantile: 0.10
+  min_spell_length: 2
+  min_valid_days: 10
+  min_valid_years: 1
 
 data:
   prediction_path: null

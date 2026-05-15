@@ -135,7 +135,7 @@ class LocalGaussianGLM:
                 X_feat = sm.add_constant(X_feat, has_constant="add")
 
                 try:
-                    predictions[:, iy, ix] = entry["model"].predict(X_feat)
+                    predictions[:, iy, ix] = X_feat @ entry["params"]
                 except Exception:
                     continue
 
@@ -246,7 +246,7 @@ def train_glm(
                 res = sm.OLS(y_fit, X_fit).fit()
 
                 glm_wrapper.models[iy, ix] = {
-                    "model": res,
+                    "params": res.params.astype(np.float32),
                     "keep_mask": keep_mask,
                 }
                 trained_count += 1

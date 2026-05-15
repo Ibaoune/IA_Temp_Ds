@@ -140,44 +140,128 @@ class Config:
         shapefile_path_raw = str(paths.get("shapefile_path", ""))
         self.shapefile_path = os.path.join(self.root_dir, shapefile_path_raw) if self.root_dir and shapefile_path_raw else shapefile_path_raw
 
-        self.era5_predictor_pattern = str(paths.get("era5_predictor_pattern", ""))
-        if not os.path.isabs(self.era5_predictor_pattern) and self.root_dir:
-            self.era5_predictor_pattern = os.path.join(self.root_dir, self.era5_predictor_pattern)
+        def _resolve_path(path_value):
+            path_value = str(path_value)
+            if path_value and not os.path.isabs(path_value) and self.root_dir:
+                return os.path.join(self.root_dir, path_value)
+            return path_value
 
-        self.lmdz_predictor_pattern = str(paths.get("lmdz_predictor_pattern", ""))
-        if self.lmdz_predictor_pattern and not os.path.isabs(self.lmdz_predictor_pattern) and self.root_dir:
-            self.lmdz_predictor_pattern = os.path.join(self.root_dir, self.lmdz_predictor_pattern)
+
+        # ----------------------
+        # Predictor patterns
+        # ----------------------
+
+        # ERA5 predictors
+        self.era5_predictor_pattern = _resolve_path(
+            paths.get("era5_predictor_pattern", "")
+        )
+
+        # Ancien format LMDZ brut, utile surtout pour prediction/
+        # Exemple :
+        # {folder}/all_Mor/{lmdz_var}-{suffix}.nc
+        self.lmdz_predictor_pattern = _resolve_path(
+            paths.get("lmdz_predictor_pattern", "")
+        )
+
+        # Nouveau format harmonisé pour main/
+        # Exemple :
+        # ./DATA1/predictors_lmdz250/{var}_1979-2020_levels.nc
+        self.lmdz250_predictor_pattern = _resolve_path(
+            paths.get("lmdz250_predictor_pattern", "")
+        )
+
+        self.lmdz35_predictor_pattern = _resolve_path(
+            paths.get("lmdz35_predictor_pattern", "")
+        )
+
+        # Choisir automatiquement le pattern des prédicteurs selon general.src
+        if self.src == "era5":
+            self.predictor_pattern = self.era5_predictor_pattern
+
+        elif self.src == "lmdz250":
+            self.predictor_pattern = self.lmdz250_predictor_pattern
+
+        elif self.src == "lmdz35":
+            self.predictor_pattern = self.lmdz35_predictor_pattern
+
+        elif self.src == "lmdz":
+            # On garde l'ancien cas pour ne pas casser prediction/
+            self.predictor_pattern = self.lmdz_predictor_pattern
+
+        else:
+            raise ValueError(
+                f"Unsupported src '{self.src}'. "
+                "Expected one of: era5, lmdz, lmdz250, lmdz35."
+            )
+
+        if not self.predictor_pattern:
+            raise ValueError(
+                f"Missing predictor pattern for src='{self.src}'. "
+                "Check paths in YAML."
+            )
+
 
         # ----------------------
         # Mappings
         # ----------------------
+        # Gardé pour l'ancien format LMDZ brut :
+        # z -> geop, q -> rhum, t -> temp, u -> vitu, v -> vitv
         self.lmdz_var_map = cfg_dict.get("mappings", {}).get("lmdz_var_map", {})
-        
+
+
+        # ----------------------
+        # Target path
+        # ----------------------
         if self.variable == "precip":
-            self.target_path = str(paths.get(f"{self.target}_path", ""))
+            self.target_path = _resolve_path(paths.get(f"{self.target}_path", ""))
+
             if not self.target_path:
-                self.target_path = str(cfg_dict.get("data", {}).get("precip", {}).get(f"{self.target}_path", ""))
+                self.target_path = _resolve_path(
+                    cfg_dict.get("data", {}).get("precip", {}).get(f"{self.target}_path", "")
+                )
 
         elif self.variable == "temp":
             temp_cfg = cfg_dict.get("data", {}).get("temp", {})
 
             if self.target == "mswt":
-                self.target_path = str(
+                self.target_path = _resolve_path(
                     paths.get(
                         "mswt_path",
                         temp_cfg.get("mswt_path", temp_cfg.get("mswet_path", ""))
                     )
                 )
+
+            elif self.target == "lmdz35":
+                self.target_path = _resolve_path(
+                    paths.get(
+                        "lmdz35_path",
+                        temp_cfg.get("lmdz35_path", "")
+                    )
+                )
+
             elif self.target == "lmdz":
-                self.target_path = str(paths.get("lmdz_path", temp_cfg.get("lmdz_path", "")))
+                # Ancien cas gardé pour compatibilité
+                self.target_path = _resolve_path(
+                    paths.get(
+                        "lmdz_path",
+                        temp_cfg.get("lmdz_path", "")
+                    )
+                )
+
             else:
-                self.target_path = ""
+                raise ValueError(
+                    f"Unsupported temperature target '{self.target}'. "
+                    "Expected one of: mswt, lmdz, lmdz35."
+                )
 
         else:
             raise ValueError(f"Unsupported variable: {self.variable}")
 
-        if self.target_path and not os.path.isabs(self.target_path) and self.root_dir:
-            self.target_path = os.path.join(self.root_dir, self.target_path)
+        if not self.target_path:
+            raise ValueError(
+                f"Missing target path for target='{self.target}'. "
+                "Check paths in YAML."
+            )
 
         # ----------------------
         # Prediction

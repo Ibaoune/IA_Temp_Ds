@@ -119,9 +119,26 @@ def validate_metric_config(metric_cfg: dict):
 def build_prediction_path(cfg) -> Path:
     """
     Default prediction file path from the main project config.
+    Compatible with ERA5->MSWT, LMDZ250->LMDZ35, and LMDZ35_2deg->LMDZ35.
     """
     exp_path = Path(build_experiment_path(cfg))
-    return exp_path / "output_data" / f"{cfg.model_type}_predictions_era5_to_{cfg.target}.nc"
+    out_dir = exp_path / "output_data"
+
+    candidates = [
+        out_dir / f"{cfg.model_type}_predictions_{cfg.experiment}.nc",
+        out_dir / f"{cfg.model_type}_predictions_{cfg.src}_to_{cfg.target}.nc",
+        out_dir / f"{cfg.model_type}_predictions_{cfg.target}.nc",
+        out_dir / f"{cfg.model_type}_predictions_era5_to_{cfg.target}.nc",
+    ]
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    raise FileNotFoundError(
+        "No prediction file found. Tried:\n"
+        + "\n".join(str(p) for p in candidates)
+    )
 
 
 # =========================================================
