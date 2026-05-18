@@ -4,7 +4,7 @@
 
 general:
   verbose: true
-  experiment: "unet1_temperature" # for "unet_temperature" or "unet1_temperature"
+  experiment: "unet1_era5_to_mswt" # for "unet_temperature" or "unet1_temperature"
   variable: "temp"
   target: "mswt"
   src: "era5"
@@ -57,10 +57,10 @@ region:
 dates:
   train:
     start: "1980-01-01"
-    end: "1984-12-31"
+    end: "2005-12-31"
   test:
-    start: "1985-01-01"
-    end: "1985-12-31"
+    start: "2006-01-01"
+    end: "2020-12-31"
 
 paths:
   root_dir: ""
