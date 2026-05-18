@@ -10,7 +10,7 @@ import yaml
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_metric_dirs
+from ...common import ensure_spatial_metric_dirs, get_spatial_context
 from ...map_utils import (
     apply_shape_mask,
     plot_metric_map,
@@ -151,13 +151,13 @@ def plot_p98_comparison_panel(
 
     style = MapStyle()
 
-    obs_masked = apply_shape_mask(p98_obs, lons, lats, shapefile_path)
-    pred_masked = apply_shape_mask(p98_pred, lons, lats, shapefile_path)
+    obs_display = apply_shape_mask(p98_obs, lons, lats, shapefile_path)
+    pred_display = apply_shape_mask(p98_pred, lons, lats, shapefile_path)
 
     merged = np.concatenate(
         [
-            flatten_valid(obs_masked),
-            flatten_valid(pred_masked),
+            flatten_valid(p98_obs),
+            flatten_valid(p98_pred),
         ]
     )
 
@@ -184,16 +184,18 @@ def plot_p98_comparison_panel(
         dpi=style.dpi,
     )
 
-    arrays = [obs_masked, pred_masked]
+    display_arrays = [obs_display, pred_display]
+    stats_arrays = [p98_obs, p98_pred]
     titles = [f"{reference_label} P98", f"{model_label} P98"]
 
     for i, ax in enumerate(axes):
-        arr = arrays[i]
+        arr_display = display_arrays[i]
+        arr_stats = stats_arrays[i]
 
         im = ax.pcolormesh(
             lon2d,
             lat2d,
-            arr,
+            arr_display,
             cmap=cmap,
             norm=norm,
             shading="auto",
@@ -217,7 +219,7 @@ def plot_p98_comparison_panel(
         gl.ylabel_style = {"size": style.tick_labelsize}
 
         ax.set_title(titles[i], fontsize=style.panel_title_fontsize, fontweight="bold")
-        add_stats_box(ax, arr, unit="°C")
+        add_stats_box(ax, arr_stats, unit="°C")
 
     cbar_ax = fig.add_axes([0.92, 0.16, 0.02, 0.68])
     cbar = fig.colorbar(im, cax=cbar_ax, orientation="vertical")
@@ -270,9 +272,19 @@ def main():
     )
 
     exp_path = Path(build_experiment_path(cfg))
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, "b98")
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name="b98",
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature B-98 plotting ===")
+    print(f"Spatial domain  : {spatial_ctx.eval_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -327,6 +339,8 @@ def main():
                 n_bins=11,
                 robust=args.robust,
                 show=args.show,
+                apply_mask_in_plot=True,
+                stats_arr=annual_b98,
             )
         else:
             print("[WARNING] Annual B-98 file not found.")
@@ -373,6 +387,8 @@ def main():
             n_bins=11,
             robust=args.robust,
             show=args.show,
+            apply_mask_in_plot=True,
+            stats_arr=b98,
         )
 
     if len(seasonal_b98) == 4:
@@ -403,13 +419,8 @@ def main():
     if len(seasonal_b98) == 4:
         print("[STEP] Plotting seasonal B-98 boxplot")
 
-        seasonal_b98_masked = [
-            apply_shape_mask(arr, seasonal_lons, seasonal_lats, cfg.shapefile_path)
-            for arr in seasonal_b98
-        ]
-
         plot_seasonal_bias_boxplot(
-            seasonal_arrays=seasonal_b98_masked,
+            seasonal_arrays=seasonal_b98,
             labels=seasonal_labels,
             fig_path=plot_dir / "seasonal_b98_boxplot.png",
             title="Seasonal B-98 distribution",
@@ -425,15 +436,8 @@ def main():
     if annual_b98 is not None:
         print("[STEP] Plotting annual B-98 boxplot")
 
-        annual_b98_masked = apply_shape_mask(
-            annual_b98,
-            annual_lons,
-            annual_lats,
-            cfg.shapefile_path,
-        )
-
         plot_annual_bias_boxplot(
-            annual_array=annual_b98_masked,
+            annual_array=annual_b98,
             fig_path=plot_dir / "annual_b98_boxplot.png",
             title="Annual B-98 distribution",
             ylabel="B-98 (°C)",

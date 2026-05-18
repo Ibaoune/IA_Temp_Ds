@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_metric_dirs
+from ...common import ensure_spatial_metric_dirs, get_spatial_context
 from ...map_utils import (
     apply_shape_mask,
     plot_metric_map,
@@ -119,23 +119,29 @@ def plot_corr_with_significance(
     fig_path: Path,
     cfg,
     show: bool = False,
+    stats_arr: np.ndarray | None = None,
+    apply_mask_in_plot: bool = True,
 ):
     arr = corr_da.values
     lons, lats = get_lat_lon(corr_da)
+    arr_stats = arr if stats_arr is None else np.asarray(stats_arr, dtype=float)
 
-    masked_arr = apply_shape_mask(
-        arr,
-        lons,
-        lats,
-        cfg.shapefile_path,
-    )
+    if apply_mask_in_plot:
+        arr_display = apply_shape_mask(
+            arr,
+            lons,
+            lats,
+            cfg.shapefile_path,
+        )
+    else:
+        arr_display = arr
 
     fig, ax = plt.subplots(figsize=(9, 7))
 
     im = ax.pcolormesh(
         lons,
         lats,
-        masked_arr,
+        arr_display,
         shading="auto",
         vmin=0,
         vmax=1,
@@ -178,7 +184,7 @@ def plot_corr_with_significance(
     ax.grid(True, linestyle="--", alpha=0.3)
 
     # Stats
-    finite = masked_arr[np.isfinite(masked_arr)]
+    finite = arr_stats[np.isfinite(arr_stats)]
     if finite.size > 0:
         stats_text = (
             f"min: {np.nanmin(finite):.3f}\n"
@@ -222,22 +228,31 @@ def plot_one_corr_type(
     cfg,
     exp_path: Path,
     selected_seasons: list[str],
+    spatial_ctx,
     show: bool = False,
     robust: bool = False,
 ):
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, corr_type)
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name=corr_type,
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print(f"\n=== Plotting {corr_type} ===")
+    print(f"Spatial domain  : {spatial_ctx.eval_domain}")
     print(f"Input data dir  : {data_dir}")
     print(f"Output plot dir : {plot_dir}")
 
+    exp_label = f"{cfg.src.upper()} → {cfg.target.upper()} | {cfg.model_type.upper()}"
+
     if corr_type == "corr_d":
-        exp_label = f"{cfg.src.upper()} → {cfg.target.upper()} | {cfg.model_type.upper()}"
         full_title = "daily deseasonalized correlation"
         map_title = "Daily deseasonalized correlation (CORR D)"
-    else:
+    elif corr_type == "corr_m":
         full_title = "monthly correlation"
         map_title = "Monthly correlation (CORR M)"
+    else:
+        raise ValueError(f"Unknown corr_type: {corr_type}")
 
     annual_arr = None
     annual_lons = None
@@ -270,6 +285,8 @@ def plot_one_corr_type(
                 n_bins=10,
                 robust=robust,
                 show=show,
+                apply_mask_in_plot=True,
+                stats_arr=annual_arr,
             )
 
             plot_corr_with_significance(
@@ -279,6 +296,8 @@ def plot_one_corr_type(
                 fig_path=plot_dir / f"annual_{corr_type}_significance_map.png",
                 cfg=cfg,
                 show=show,
+                stats_arr=annual_arr,
+                apply_mask_in_plot=True,
             )
         else:
             print(f"[WARNING] Annual {corr_type} file not found.")
@@ -328,6 +347,8 @@ def plot_one_corr_type(
             n_bins=10,
             robust=robust,
             show=show,
+            apply_mask_in_plot=True,
+            stats_arr=arr,
         )
 
         plot_corr_with_significance(
@@ -337,6 +358,8 @@ def plot_one_corr_type(
             fig_path=plot_dir / f"{corr_type}_{season.lower()}_significance_map.png",
             cfg=cfg,
             show=show,
+            stats_arr=arr,
+            apply_mask_in_plot=True,
         )
 
     # Seasonal panel
@@ -367,13 +390,8 @@ def plot_one_corr_type(
     if len(seasonal_arrays) == 4:
         print(f"[STEP] Plotting seasonal {corr_type} boxplot")
 
-        seasonal_arrays_masked = [
-            apply_shape_mask(arr, seasonal_lons, seasonal_lats, cfg.shapefile_path)
-            for arr in seasonal_arrays
-        ]
-
         plot_seasonal_bias_boxplot(
-            seasonal_arrays=seasonal_arrays_masked,
+            seasonal_arrays=seasonal_arrays,
             labels=seasonal_labels,
             fig_path=plot_dir / f"seasonal_{corr_type}_boxplot.png",
             title=f"Seasonal {corr_type.upper()} distribution",
@@ -385,15 +403,8 @@ def plot_one_corr_type(
     if annual_arr is not None:
         print(f"[STEP] Plotting annual {corr_type} boxplot")
 
-        annual_arr_masked = apply_shape_mask(
-            annual_arr,
-            annual_lons,
-            annual_lats,
-            cfg.shapefile_path,
-        )
-
         plot_annual_bias_boxplot(
-            annual_array=annual_arr_masked,
+            annual_array=annual_arr,
             fig_path=plot_dir / f"annual_{corr_type}_boxplot.png",
             title=f"Annual {corr_type.upper()} distribution",
             ylabel="Correlation",
@@ -427,8 +438,14 @@ def main():
     )
 
     exp_path = Path(build_experiment_path(cfg))
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
 
     print("=== Temperature correlation plotting ===")
+    print(f"Spatial domain  : {spatial_ctx.eval_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Experiment root : {exp_path}")
@@ -439,6 +456,7 @@ def main():
         cfg=cfg,
         exp_path=exp_path,
         selected_seasons=selected_seasons,
+        spatial_ctx=spatial_ctx,
         show=args.show,
         robust=args.robust,
     )
@@ -448,6 +466,7 @@ def main():
         cfg=cfg,
         exp_path=exp_path,
         selected_seasons=selected_seasons,
+        spatial_ctx=spatial_ctx,
         show=args.show,
         robust=args.robust,
     )

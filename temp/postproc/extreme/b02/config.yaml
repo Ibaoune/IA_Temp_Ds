@@ -7,6 +7,16 @@ metric:
   min_valid: 10
   seasons: ["Annual", "DJF", "MAM", "JJA", "SON"]
 
+spatial:
+  eval_domain: "land"   # "full_domain" | "morocco_shape" | "land"
+  save_mask: true
+
+  # utilisé si eval_domain = "morocco_shape"
+  shapefile_path: null           # null => cfg.shapefile_path du main config
+
+  # utilisé si eval_domain = "land"
+  land_shapefile_path: null      # null => Natural Earth land polygons
+
 data:
   prediction_path: null
   prediction_var: "air_temperature"

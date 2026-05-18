@@ -11,7 +11,7 @@ import yaml
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_metric_dirs
+from ...common import ensure_spatial_metric_dirs, get_spatial_context
 from ...map_utils import (
     apply_shape_mask,
     plot_metric_map,
@@ -158,12 +158,12 @@ def plot_wams_comparison_panel(
 
     style = MapStyle()
 
-    obs_masked = apply_shape_mask(wams_obs, lons, lats, shapefile_path)
-    pred_masked = apply_shape_mask(wams_pred, lons, lats, shapefile_path)
+    obs_display = apply_shape_mask(wams_obs, lons, lats, shapefile_path)
+    pred_display = apply_shape_mask(wams_pred, lons, lats, shapefile_path)
 
     merged = np.concatenate([
-        flatten_valid(obs_masked),
-        flatten_valid(pred_masked),
+        flatten_valid(wams_obs),
+        flatten_valid(wams_pred),
     ])
 
     if merged.size == 0:
@@ -189,16 +189,18 @@ def plot_wams_comparison_panel(
         dpi=style.dpi,
     )
 
-    arrays = [obs_masked, pred_masked]
+    display_arrays = [obs_display, pred_display]
+    stats_arrays = [wams_obs, wams_pred]
     titles = [f"{reference_label} WAMS", f"{model_label} WAMS"]
 
     for i, ax in enumerate(axes):
-        arr = arrays[i]
+        arr_display = display_arrays[i]
+        arr_stats = stats_arrays[i]
 
         im = ax.pcolormesh(
             lon2d,
             lat2d,
-            arr,
+            arr_display,
             cmap=cmap,
             norm=norm,
             shading="auto",
@@ -222,7 +224,7 @@ def plot_wams_comparison_panel(
         gl.ylabel_style = {"size": style.tick_labelsize}
 
         ax.set_title(titles[i], fontsize=style.panel_title_fontsize, fontweight="bold")
-        add_stats_box(ax, arr, unit="days")
+        add_stats_box(ax, arr_stats, unit="days")
 
     cbar_ax = fig.add_axes([0.92, 0.16, 0.02, 0.68])
     cbar = fig.colorbar(im, cax=cbar_ax, orientation="vertical")
@@ -271,9 +273,19 @@ def main():
         raise ValueError("This plot script is only for temperature experiments.")
 
     exp_path = Path(build_experiment_path(cfg))
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, "wams")
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name="wams",
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature WAMS plotting ===")
+    print(f"Spatial domain  : {spatial_ctx.eval_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -324,18 +336,13 @@ def main():
         n_bins=11,
         robust=args.robust,
         show=args.show,
+        apply_mask_in_plot=True,
+        stats_arr=bwams,
     )
 
     print("[STEP] Plotting annual bWAMS boxplot")
-    bwams_masked = apply_shape_mask(
-        bwams,
-        lons,
-        lats,
-        cfg.shapefile_path,
-    )
-
     plot_annual_bias_boxplot(
-        annual_array=bwams_masked,
+        annual_array=bwams,
         fig_path=plot_dir / "annual_bwams_boxplot.png",
         title="Annual bWAMS distribution",
         ylabel="bWAMS (days)",

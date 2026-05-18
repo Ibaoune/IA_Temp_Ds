@@ -11,13 +11,16 @@ from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
 from ...common import (
     align_prediction_and_observation,
+    apply_spatial_context_to_inputs,
     convert_temperature_to_celsius,
-    ensure_metric_dirs,
+    ensure_spatial_metric_dirs,
+    get_spatial_context,
     open_temperature_dataarray,
     save_json,
     save_summary_csv,
     spatial_summary,
     subset_test_period,
+    validate_spatial_config,
 )
 
 
@@ -106,6 +109,8 @@ def validate_metric_config(metric_cfg: dict):
                 "time.start_date and time.end_date must be provided when "
                 "use_test_period_from_main_config = false"
             )
+
+    validate_spatial_config(metric_cfg)
 
 
 # =========================================================
@@ -320,6 +325,12 @@ def main():
     min_valid_days = int(metric_cfg["metric"].get("min_valid_days", 10))
     min_valid_years = int(metric_cfg["metric"].get("min_valid_years", 1))
 
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+
     pred_var = metric_cfg["data"].get("prediction_var", "air_temperature")
     obs_var = metric_cfg["data"].get("reference_var", None)
     pred_units = metric_cfg["data"].get("prediction_units", None)
@@ -337,9 +348,15 @@ def main():
     if not obs_path.exists():
         raise FileNotFoundError(f"Observation file not found: {obs_path}")
 
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, metric_name)
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name=metric_name,
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature WAMS postprocessing ===")
+    print(f"Spatial domain   : {spatial_ctx.eval_domain}")
+    print(f"Save mask        : {spatial_ctx.save_mask}")
     print(f"Metric config     : {metric_cfg_path}")
     print(f"Main config       : {main_cfg_path}")
     print(f"Experiment root   : {exp_path}")
@@ -368,6 +385,15 @@ def main():
     pred, obs = align_prediction_and_observation(pred, obs)
     print(f"Aligned shape    : pred={pred.shape}, obs={obs.shape}")
 
+    pred, obs, spatial_mask = apply_spatial_context_to_inputs(
+        pred=pred,
+        obs=obs,
+        spatial_ctx=spatial_ctx,
+    )
+
+    print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
+    print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
+
     wams_pred, wams_obs, bwams = compute_wams_fields(
         pred=pred,
         obs=obs,
@@ -394,6 +420,8 @@ def main():
     ds_out.attrs["min_spell_length"] = min_spell_length
     ds_out.attrs["min_valid_days"] = min_valid_days
     ds_out.attrs["min_valid_years"] = min_valid_years
+    ds_out.attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+    ds_out.attrs["mask_applied_before_compute"] = "true"
 
     ds_out["wams_pred"].attrs["long_name"] = "Warm Annual Max Spell - prediction"
     ds_out["wams_pred"].attrs["units"] = "day_count"
@@ -405,40 +433,39 @@ def main():
     ds_out["bwams"].attrs["units"] = "day_count"
     ds_out["bwams"].attrs["description"] = "bwams = wams_pred - wams_obs"
 
+    for var_name in ["wams_pred", "wams_obs", "bwams"]:
+        ds_out[var_name].attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+        ds_out[var_name].attrs["mask_applied_before_compute"] = "true"
+
+    if spatial_ctx.save_mask:
+        ds_out["spatial_mask"] = spatial_mask.astype("int8")
+
     out_nc = data_dir / "wams_annual_mean_period.nc"
 
     if save_netcdf:
         ds_out.to_netcdf(out_nc)
 
     bwams_stats = spatial_summary(ds_out["bwams"])
+    summary_row = {
+        "metric": "bwams",
+        "threshold_quantile": threshold_quantile,
+        "min_spell_length": min_spell_length,
+        "min_valid_days": min_valid_days,
+        "min_valid_years": min_valid_years,
+        "spatial_eval_domain": spatial_ctx.eval_domain,
+        **bwams_stats,
+        "file": str(out_nc) if save_netcdf else "",
+    }
 
     if save_summary_json:
         save_json(
-            {
-                "metric": "wams",
-                "threshold_quantile": threshold_quantile,
-                "min_spell_length": min_spell_length,
-                "min_valid_days": min_valid_days,
-                "min_valid_years": min_valid_years,
-                "file": str(out_nc) if save_netcdf else "",
-                "bwams": bwams_stats,
-            },
+            summary_row,
             data_dir / "summary_wams_annual_mean_period.json",
         )
 
     if save_summary_csv_flag:
         save_summary_csv(
-            [
-                {
-                    "metric": "bwams",
-                    "threshold_quantile": threshold_quantile,
-                    "min_spell_length": min_spell_length,
-                    "min_valid_days": min_valid_days,
-                    "min_valid_years": min_valid_years,
-                    **bwams_stats,
-                    "file": str(out_nc) if save_netcdf else "",
-                }
-            ],
+            [summary_row],
             data_dir / "wams_summary.csv",
         )
         print(f"Saved summary CSV: {data_dir / 'wams_summary.csv'}")

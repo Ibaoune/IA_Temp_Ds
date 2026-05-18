@@ -10,7 +10,7 @@ import yaml
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_metric_dirs
+from ...common import ensure_spatial_metric_dirs, get_spatial_context
 from ...map_utils import (
     apply_shape_mask,
     plot_metric_map,
@@ -160,8 +160,8 @@ def plot_ac1_comparison_panel(
 
     style = MapStyle()
 
-    obs_masked = apply_shape_mask(ac1_obs, lons, lats, shapefile_path)
-    pred_masked = apply_shape_mask(ac1_pred, lons, lats, shapefile_path)
+    obs_display = apply_shape_mask(ac1_obs, lons, lats, shapefile_path)
+    pred_display = apply_shape_mask(ac1_pred, lons, lats, shapefile_path)
 
     levels = compute_correlation_levels(step=step, vmin=vmin, vmax=vmax)
     cmap = get_correlation_cmap(len(levels) - 1)
@@ -178,16 +178,18 @@ def plot_ac1_comparison_panel(
         dpi=style.dpi,
     )
 
-    arrays = [obs_masked, pred_masked]
+    display_arrays = [obs_display, pred_display]
+    stats_arrays = [ac1_obs, ac1_pred]
     titles = [f"{reference_label} AC1", f"{model_label} AC1"]
 
     for i, ax in enumerate(axes):
-        arr = arrays[i]
+        arr_display = display_arrays[i]
+        arr_stats = stats_arrays[i]
 
         im = ax.pcolormesh(
             lon2d,
             lat2d,
-            arr,
+            arr_display,
             cmap=cmap,
             norm=norm,
             shading="auto",
@@ -211,7 +213,7 @@ def plot_ac1_comparison_panel(
         gl.ylabel_style = {"size": style.tick_labelsize}
 
         ax.set_title(titles[i], fontsize=style.panel_title_fontsize, fontweight="bold")
-        add_stats_box(ax, arr, unit=None)
+        add_stats_box(ax, arr_stats, unit=None)
 
     cbar_ax = fig.add_axes([0.92, 0.16, 0.02, 0.68])
     cbar = fig.colorbar(im, cax=cbar_ax, orientation="vertical")
@@ -260,9 +262,19 @@ def main():
         raise ValueError("This plot script is only for temperature experiments.")
 
     exp_path = Path(build_experiment_path(cfg))
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, "ac1")
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name="ac1",
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature AC1 plotting ===")
+    print(f"Spatial domain  : {spatial_ctx.eval_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -315,18 +327,13 @@ def main():
         n_bins=11,
         robust=args.robust,
         show=args.show,
+        apply_mask_in_plot=True,
+        stats_arr=bac1,
     )
 
     print("[STEP] Plotting annual bAC1 boxplot")
-    bac1_masked = apply_shape_mask(
-        bac1,
-        lons,
-        lats,
-        cfg.shapefile_path,
-    )
-
     plot_annual_bias_boxplot(
-        annual_array=bac1_masked,
+        annual_array=bac1,
         fig_path=plot_dir / "annual_bac1_boxplot.png",
         title="Annual bAC1 distribution",
         ylabel="bAC1",

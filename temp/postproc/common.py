@@ -8,7 +8,12 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import xarray as xr
+from dataclasses import dataclass
 
+from .map_utils import (
+    VALID_SPATIAL_DOMAINS,
+    build_spatial_mask,
+)
 
 SEASONS = {
     "Annual": list(range(1, 13)),
@@ -20,6 +25,44 @@ SEASONS = {
 
 TEMP_CANDIDATES = ("air_temperature", "t2m", "tas", "temperature", "temp")
 
+@dataclass
+class SpatialContext:
+    eval_domain: str
+    save_mask: bool
+    shapefile_path: Path | None
+    land_shapefile_path: Path | None
+
+def resolve_path_from_project_root(
+    path_value: str | Path | None,
+    project_root: str | Path,
+) -> Path | None:
+    """
+    Resolve a path written in YAML.
+
+    Relative paths are interpreted from the project root.
+    """
+    if path_value in (None, "", "null"):
+        return None
+
+    p = Path(path_value)
+
+    if p.is_absolute():
+        return p
+
+    return (Path(project_root) / p).resolve()
+
+def validate_spatial_config(metric_cfg: dict) -> None:
+    """
+    Validate the common spatial section used by all metrics.
+    """
+    spatial_cfg = metric_cfg.get("spatial", {})
+    eval_domain = spatial_cfg.get("eval_domain", "full_domain")
+
+    if eval_domain not in VALID_SPATIAL_DOMAINS:
+        raise ValueError(
+            f"spatial.eval_domain must be one of {sorted(VALID_SPATIAL_DOMAINS)}, "
+            f"got {eval_domain!r}"
+        )
 
 def standardize_coords(ds: xr.Dataset) -> xr.Dataset:
     """
@@ -195,6 +238,9 @@ def spatial_summary(da: xr.DataArray) -> dict:
             "max": np.nan,
             "mean": np.nan,
             "std": np.nan,
+            "median": np.nan,
+            "q25": np.nan,
+            "q75": np.nan,
         }
 
     arr = vals[valid]
@@ -204,6 +250,9 @@ def spatial_summary(da: xr.DataArray) -> dict:
         "max": float(np.max(arr)),
         "mean": float(np.mean(arr)),
         "std": float(np.std(arr)),
+        "median": float(np.median(arr)),
+        "q25": float(np.percentile(arr, 25)),
+        "q75": float(np.percentile(arr, 75)),
     }
 
 
@@ -218,6 +267,26 @@ def ensure_metric_dirs(exp_path: str | Path, metric_name: str) -> tuple[Path, Pa
     metric_root = exp_path / "metrics" / metric_name
     data_dir = metric_root / "data"
     plot_dir = metric_root / "plots"
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    plot_dir.mkdir(parents=True, exist_ok=True)
+
+    return data_dir, plot_dir
+
+def ensure_spatial_metric_dirs(
+    exp_path: str | Path,
+    metric_name: str,
+    eval_domain: str,
+) -> tuple[Path, Path]:
+    """
+    Create:
+    results/<experiment>/metrics/<metric_name>/data/<eval_domain>
+    results/<experiment>/metrics/<metric_name>/plots/<eval_domain>
+    """
+    data_dir, plot_dir = ensure_metric_dirs(exp_path, metric_name)
+
+    data_dir = data_dir / eval_domain
+    plot_dir = plot_dir / eval_domain
 
     data_dir.mkdir(parents=True, exist_ok=True)
     plot_dir.mkdir(parents=True, exist_ok=True)
@@ -240,3 +309,75 @@ def save_summary_csv(rows: list[dict], path: str | Path) -> None:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+def get_spatial_context(
+    metric_cfg: dict,
+    cfg,
+    project_root: str | Path,
+) -> SpatialContext:
+    """
+    Read the spatial block from metric config and resolve paths.
+
+    Expected YAML:
+
+    spatial:
+      eval_domain: "land"
+      save_mask: true
+      shapefile_path: null
+      land_shapefile_path: null
+    """
+    validate_spatial_config(metric_cfg)
+
+    spatial_cfg = metric_cfg.get("spatial", {})
+
+    eval_domain = spatial_cfg.get("eval_domain", "full_domain")
+    save_mask = bool(spatial_cfg.get("save_mask", True))
+
+    shape_override = resolve_path_from_project_root(
+        spatial_cfg.get("shapefile_path"),
+        project_root=project_root,
+    )
+
+    land_shape_override = resolve_path_from_project_root(
+        spatial_cfg.get("land_shapefile_path"),
+        project_root=project_root,
+    )
+
+    shapefile_path = (
+        shape_override
+        if shape_override is not None
+        else Path(cfg.shapefile_path)
+    )
+
+    return SpatialContext(
+        eval_domain=eval_domain,
+        save_mask=save_mask,
+        shapefile_path=shapefile_path,
+        land_shapefile_path=land_shape_override,
+    )
+
+def apply_spatial_context_to_inputs(
+    pred: xr.DataArray,
+    obs: xr.DataArray,
+    spatial_ctx: SpatialContext,
+) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+    """
+    Build the spatial mask and apply it to prediction and observation
+    BEFORE metric computation.
+    """
+    if "time" in obs.dims:
+        template = obs.isel(time=0)
+    else:
+        template = obs
+
+    spatial_mask = build_spatial_mask(
+        da=template,
+        eval_domain=spatial_ctx.eval_domain,
+        shapefile_path=spatial_ctx.shapefile_path,
+        land_shapefile_path=spatial_ctx.land_shapefile_path,
+    )
+
+    pred_masked = pred.where(spatial_mask)
+    obs_masked = obs.where(spatial_mask)
+
+    return pred_masked, obs_masked, spatial_mask

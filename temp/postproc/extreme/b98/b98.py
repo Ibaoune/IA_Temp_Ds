@@ -11,14 +11,17 @@ from ....main.src.core.utils import build_experiment_path
 from ...common import (
     SEASONS,
     align_prediction_and_observation,
+    apply_spatial_context_to_inputs,
     convert_temperature_to_celsius,
-    ensure_metric_dirs,
+    ensure_spatial_metric_dirs,
     get_months,
+    get_spatial_context,
     open_temperature_dataarray,
     save_json,
     save_summary_csv,
     spatial_summary,
     subset_test_period,
+    validate_spatial_config,
 )
 
 
@@ -107,6 +110,8 @@ def validate_metric_config(metric_cfg: dict):
                 "time.start_date and time.end_date must be provided when "
                 "use_test_period_from_main_config = false"
             )
+
+    validate_spatial_config(metric_cfg)
 
 
 # =========================================================
@@ -301,6 +306,12 @@ def main():
     if not selected_seasons:
         raise ValueError("metric.seasons cannot be empty.")
 
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+
     pred_var = metric_cfg["data"].get("prediction_var", "air_temperature")
     obs_var = metric_cfg["data"].get("reference_var", None)
     pred_units = metric_cfg["data"].get("prediction_units", None)
@@ -318,9 +329,15 @@ def main():
     if not obs_path.exists():
         raise FileNotFoundError(f"Observation file not found: {obs_path}")
 
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, metric_name)
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name=metric_name,
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature B-98 postprocessing ===")
+    print(f"Spatial domain   : {spatial_ctx.eval_domain}")
+    print(f"Save mask        : {spatial_ctx.save_mask}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Experiment root : {exp_path}")
@@ -348,6 +365,15 @@ def main():
     pred, obs = align_prediction_and_observation(pred, obs)
     print(f"Aligned shape    : pred={pred.shape}, obs={obs.shape}")
 
+    pred, obs, spatial_mask = apply_spatial_context_to_inputs(
+        pred=pred,
+        obs=obs,
+        spatial_ctx=spatial_ctx,
+    )
+
+    print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
+    print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
+
     summary_rows = []
 
     for season_name, months in selected_seasons.items():
@@ -368,6 +394,15 @@ def main():
         ds_out.attrs["observation_file"] = str(obs_path)
         ds_out.attrs["time_start"] = str(start_date)
         ds_out.attrs["time_end"] = str(end_date)
+        ds_out.attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+        ds_out.attrs["mask_applied_before_compute"] = "true"
+
+        for var_name in ["p98_pred", "p98_obs", "b98"]:
+            ds_out[var_name].attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+            ds_out[var_name].attrs["mask_applied_before_compute"] = "true"
+
+        if spatial_ctx.save_mask:
+            ds_out["spatial_mask"] = spatial_mask.astype("int8")
 
         out_nc = data_dir / f"b98_{season_name.lower()}_mean_period.nc"
 
@@ -380,6 +415,7 @@ def main():
             "metric": "b98",
             "quantile": q,
             "min_valid": min_valid,
+            "spatial_eval_domain": spatial_ctx.eval_domain,
             **stats,
             "file": str(out_nc) if save_netcdf else "",
         }

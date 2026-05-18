@@ -12,15 +12,18 @@ from ....main.src.core.utils import build_experiment_path
 from ...common import (
     SEASONS,
     align_prediction_and_observation,
+    apply_spatial_context_to_inputs,
     convert_temperature_to_celsius,
-    ensure_metric_dirs,
+    ensure_spatial_metric_dirs,
     get_months,
     get_season_years,
+    get_spatial_context,
     open_temperature_dataarray,
     save_json,
     save_summary_csv,
     spatial_summary,
     subset_test_period,
+    validate_spatial_config,
 )
 
 
@@ -111,6 +114,8 @@ def validate_metric_config(metric_cfg: dict):
                 "time.start_date and time.end_date must be provided when "
                 "use_test_period_from_main_config = false"
             )
+
+    validate_spatial_config(metric_cfg)
 
 
 # =========================================================
@@ -324,6 +329,12 @@ def main():
     if not selected_seasons:
         raise ValueError("metric.seasons cannot be empty.")
 
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+
     pred_var = metric_cfg["data"].get("prediction_var", "air_temperature")
     obs_var = metric_cfg["data"].get("reference_var", None)
     pred_units = metric_cfg["data"].get("prediction_units", None)
@@ -341,9 +352,15 @@ def main():
     if not obs_path.exists():
         raise FileNotFoundError(f"Observation file not found: {obs_path}")
 
-    data_dir, plots_dir = ensure_metric_dirs(exp_path, metric_name)
+    data_dir, plots_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name=metric_name,
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature RMSE postprocessing ===")
+    print(f"Spatial domain   : {spatial_ctx.eval_domain}")
+    print(f"Save mask        : {spatial_ctx.save_mask}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Experiment root : {exp_path}")
@@ -388,6 +405,18 @@ def main():
     pred, obs = align_prediction_and_observation(pred, obs)
     print(f"Aligned shape: pred={pred.shape}, obs={obs.shape}")
 
+    # -------------------------
+    # Apply spatial mask BEFORE metric computation
+    # -------------------------
+    pred, obs, spatial_mask = apply_spatial_context_to_inputs(
+        pred=pred,
+        obs=obs,
+        spatial_ctx=spatial_ctx,
+    )
+
+    print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
+    print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
+
     summary_rows = []
 
     for season_name, months in selected_seasons.items():
@@ -403,7 +432,14 @@ def main():
             min_valid=min_valid,
         )
 
-        ds_out = xr.Dataset({"rmse": rmse_da})
+        rmse_da.attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+        rmse_da.attrs["mask_applied_before_compute"] = "true"
+
+        ds_vars = {"rmse": rmse_da}
+        if spatial_ctx.save_mask:
+            ds_vars["spatial_mask"] = spatial_mask.astype("int8")
+
+        ds_out = xr.Dataset(ds_vars)
         ds_out.attrs["metric"] = "rmse"
         ds_out.attrs["variable"] = "temperature"
         ds_out.attrs["strategy"] = strategy
@@ -412,6 +448,8 @@ def main():
         ds_out.attrs["observation_file"] = str(obs_path)
         ds_out.attrs["time_start"] = str(start_date)
         ds_out.attrs["time_end"] = str(end_date)
+        ds_out.attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+        ds_out.attrs["mask_applied_before_compute"] = "true"
 
         mode_suffix = "by_year" if return_by_year else "mean_period"
         nc_name = f"rmse_{season_name.lower()}_{strategy}_{mode_suffix}.nc"
@@ -434,10 +472,8 @@ def main():
             "strategy": strategy,
             "mode": mode_suffix,
             "min_valid": min_valid,
-            "mean": stats.get("mean"),
-            "min": stats.get("min"),
-            "max": stats.get("max"),
-            "std": stats.get("std"),
+            "spatial_eval_domain": spatial_ctx.eval_domain,
+            **stats,
             "file": str(out_nc) if out_nc is not None else "",
         }
         summary_rows.append(stats_row)

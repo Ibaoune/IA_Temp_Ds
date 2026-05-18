@@ -14,14 +14,17 @@ from ....main.src.core.utils import build_experiment_path
 from ...common import (
     SEASONS,
     align_prediction_and_observation,
+    apply_spatial_context_to_inputs,
     convert_temperature_to_celsius,
-    ensure_metric_dirs,
+    ensure_spatial_metric_dirs,
     get_months,
+    get_spatial_context,
     open_temperature_dataarray,
     save_json,
     save_summary_csv,
     spatial_summary,
     subset_test_period,
+    validate_spatial_config,
 )
 
 
@@ -112,6 +115,8 @@ def validate_metric_config(metric_cfg: dict):
                 "time.start_date and time.end_date must be provided when "
                 "use_test_period_from_main_config = false"
             )
+
+    validate_spatial_config(metric_cfg)
 
 
 # =========================================================
@@ -407,6 +412,12 @@ def main():
     window = int(metric_cfg["metric"].get("window", 31))
     alpha = float(metric_cfg["metric"].get("alpha", 0.05))
 
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+
     pred_var = metric_cfg["data"].get("prediction_var", "air_temperature")
     obs_var = metric_cfg["data"].get("reference_var", None)
     pred_units = metric_cfg["data"].get("prediction_units", None)
@@ -424,10 +435,20 @@ def main():
     if not obs_path.exists():
         raise FileNotFoundError(f"Observation file not found: {obs_path}")
 
-    corr_d_data_dir, corr_d_plots_dir = ensure_metric_dirs(exp_path, "corr_d")
-    corr_m_data_dir, corr_m_plots_dir = ensure_metric_dirs(exp_path, "corr_m")
+    corr_d_data_dir, corr_d_plots_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name="corr_d",
+        eval_domain=spatial_ctx.eval_domain,
+    )
+    corr_m_data_dir, corr_m_plots_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name="corr_m",
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature correlation postprocessing ===")
+    print(f"Spatial domain   : {spatial_ctx.eval_domain}")
+    print(f"Save mask        : {spatial_ctx.save_mask}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Experiment root : {exp_path}")
@@ -456,6 +477,15 @@ def main():
 
     pred, obs = align_prediction_and_observation(pred, obs)
     print(f"Aligned shape    : pred={pred.shape}, obs={obs.shape}")
+
+    pred, obs, spatial_mask = apply_spatial_context_to_inputs(
+        pred=pred,
+        obs=obs,
+        spatial_ctx=spatial_ctx,
+    )
+
+    print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
+    print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
 
     summary_rows_corr_d = []
     summary_rows_corr_m = []
@@ -500,8 +530,17 @@ def main():
             ds_out.attrs["time_start"] = str(start_date)
             ds_out.attrs["time_end"] = str(end_date)
             ds_out.attrs["min_valid"] = min_valid
+            ds_out.attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+            ds_out.attrs["mask_applied_before_compute"] = "true"
             if metric_name == "corr_d":
                 ds_out.attrs["window_days"] = window
+
+            for var_name in ds_out.data_vars:
+                ds_out[var_name].attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+                ds_out[var_name].attrs["mask_applied_before_compute"] = "true"
+
+            if spatial_ctx.save_mask:
+                ds_out["spatial_mask"] = spatial_mask.astype("int8")
 
         out_nc_corr_d = corr_d_data_dir / f"corr_d_{season_name.lower()}_mean_period.nc"
         out_nc_corr_m = corr_m_data_dir / f"corr_m_{season_name.lower()}_mean_period.nc"
@@ -520,6 +559,7 @@ def main():
                     "metric": "corr_d",
                     "min_valid": min_valid,
                     "window_days": window,
+                    "spatial_eval_domain": spatial_ctx.eval_domain,
                     **corr_d_stats,
                     "file": str(out_nc_corr_d) if save_netcdf else "",
                 },
@@ -531,6 +571,7 @@ def main():
                     "season": season_name,
                     "metric": "corr_m",
                     "min_valid": min_valid,
+                    "spatial_eval_domain": spatial_ctx.eval_domain,
                     **corr_m_stats,
                     "file": str(out_nc_corr_m) if save_netcdf else "",
                 },
@@ -543,6 +584,7 @@ def main():
                 "metric": "corr_d",
                 "min_valid": min_valid,
                 "window_days": window,
+                "spatial_eval_domain": spatial_ctx.eval_domain,
                 **corr_d_stats,
                 "file": str(out_nc_corr_d) if save_netcdf else "",
             }
@@ -553,6 +595,7 @@ def main():
                 "season": season_name,
                 "metric": "corr_m",
                 "min_valid": min_valid,
+                "spatial_eval_domain": spatial_ctx.eval_domain,
                 **corr_m_stats,
                 "file": str(out_nc_corr_m) if save_netcdf else "",
             }

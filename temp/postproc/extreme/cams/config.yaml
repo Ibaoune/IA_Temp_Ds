@@ -1,5 +1,5 @@
 project:
-  main_config_path: "./temp/main/configs/unet1s/config.yaml"
+  main_config_path: "./temp/main/configs/unet1/config.yaml"
 
 metric:
   name: "cams"
@@ -7,6 +7,16 @@ metric:
   min_spell_length: 2
   min_valid_days: 10
   min_valid_years: 1
+
+spatial:
+  eval_domain: "land"   # "full_domain" | "morocco_shape" | "land"
+  save_mask: true
+
+  # utilisé si eval_domain = "morocco_shape"
+  shapefile_path: null           # null => cfg.shapefile_path du main config
+
+  # utilisé si eval_domain = "land"
+  land_shapefile_path: null      # null => Natural Earth land polygons
 
 data:
   prediction_path: null

@@ -8,9 +8,11 @@ import yaml
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_metric_dirs
+from ...common import (
+    ensure_spatial_metric_dirs,
+    get_spatial_context,
+)
 from ...map_utils import (
-    apply_shape_mask,
     plot_metric_map,
     plot_seasonal_bias_panel,
     plot_seasonal_bias_boxplot,
@@ -135,9 +137,19 @@ def main():
     )
 
     exp_path = Path(build_experiment_path(cfg))
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, metric_name)
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name=metric_name,
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature bias plotting ===")
+    print(f"Spatial domain  : {spatial_ctx.eval_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -180,6 +192,8 @@ def main():
                 n_bins=11,
                 robust=args.robust,
                 show=args.show,
+                apply_mask_in_plot=True,
+                stats_arr=annual_arr,
             )
         else:
             print("[WARNING] Annual bias file not found.")
@@ -233,6 +247,8 @@ def main():
             n_bins=11,
             robust=args.robust,
             show=args.show,
+            apply_mask_in_plot=True,
+            stats_arr=arr,
         )
 
     # -------------------------------------------------
@@ -257,6 +273,7 @@ def main():
             n_bins=11,
             robust=args.robust,
             show=args.show,
+            apply_mask_in_plot=True,   
         )
     else:
         print("[WARNING] Seasonal panel not created: one or more seasonal files are missing.")
@@ -267,10 +284,7 @@ def main():
     if len(seasonal_arrays) == 4:
         print("[STEP] Plotting seasonal bias boxplot")
 
-        seasonal_arrays_masked = [
-            apply_shape_mask(arr, seasonal_lons, seasonal_lats, cfg.shapefile_path)
-            for arr in seasonal_arrays
-        ]
+        seasonal_arrays_masked = seasonal_arrays
 
         plot_seasonal_bias_boxplot(
             seasonal_arrays=seasonal_arrays_masked,
@@ -289,12 +303,7 @@ def main():
     if annual_arr is not None:
         print("[STEP] Plotting annual bias boxplot")
 
-        annual_arr_masked = apply_shape_mask(
-            annual_arr,
-            annual_lons,
-            annual_lats,
-            cfg.shapefile_path,
-        )
+        annual_arr_masked = annual_arr
 
         plot_annual_bias_boxplot(
             annual_array=annual_arr_masked,

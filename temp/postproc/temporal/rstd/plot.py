@@ -10,7 +10,7 @@ import yaml
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_metric_dirs
+from ...common import ensure_spatial_metric_dirs, get_spatial_context
 from ...map_utils import (
     apply_shape_mask,
     flatten_valid,
@@ -139,12 +139,12 @@ def plot_std_comparison_panel(
 
     style = MapStyle()
 
-    obs_masked = apply_shape_mask(std_obs, lons, lats, shapefile_path)
-    pred_masked = apply_shape_mask(std_pred, lons, lats, shapefile_path)
+    obs_display = apply_shape_mask(std_obs, lons, lats, shapefile_path)
+    pred_display = apply_shape_mask(std_pred, lons, lats, shapefile_path)
 
     merged = np.concatenate([
-        flatten_valid(obs_masked),
-        flatten_valid(pred_masked),
+        flatten_valid(std_obs),
+        flatten_valid(std_pred),
     ])
 
     if merged.size == 0:
@@ -170,16 +170,18 @@ def plot_std_comparison_panel(
         dpi=style.dpi,
     )
 
-    arrays = [obs_masked, pred_masked]
+    display_arrays = [obs_display, pred_display]
+    stats_arrays = [std_obs, std_pred]
     titles = [f"{reference_label} std", f"{model_label} std"]
 
     for i, ax in enumerate(axes):
-        arr = arrays[i]
+        arr_display = display_arrays[i]
+        arr_stats = stats_arrays[i]
 
         im = ax.pcolormesh(
             lon2d,
             lat2d,
-            arr,
+            arr_display,
             cmap=cmap,
             norm=norm,
             shading="auto",
@@ -203,7 +205,7 @@ def plot_std_comparison_panel(
         gl.ylabel_style = {"size": style.tick_labelsize}
 
         ax.set_title(titles[i], fontsize=style.panel_title_fontsize, fontweight="bold")
-        add_stats_box(ax, arr, unit="°C")
+        add_stats_box(ax, arr_stats, unit="°C")
 
     cbar_ax = fig.add_axes([0.92, 0.16, 0.02, 0.68])
     cbar = fig.colorbar(im, cax=cbar_ax, orientation="vertical")
@@ -250,10 +252,11 @@ def plot_single_rstd_map(
 
     style = MapStyle()
 
-    arr = apply_shape_mask(rstd, lons, lats, shapefile_path)
+    arr_stats = np.asarray(rstd, dtype=float)
+    arr_display = apply_shape_mask(rstd, lons, lats, shapefile_path)
 
     levels = compute_sequential_levels(
-        arr,
+        arr_stats,
         n_bins=9,
         robust=robust,
         force_zero_min=True,
@@ -273,7 +276,7 @@ def plot_single_rstd_map(
     im = ax.pcolormesh(
         lon2d,
         lat2d,
-        arr,
+        arr_display,
         cmap=cmap,
         norm=norm,
         shading="auto",
@@ -309,7 +312,7 @@ def plot_single_rstd_map(
     cbar.ax.tick_params(labelsize=style.tick_labelsize)
 
     ax.set_title("Annual RSTD", fontsize=style.title_fontsize, pad=10)
-    add_stats_box(ax, arr, unit=None)
+    add_stats_box(ax, arr_stats, unit=None)
 
     fig_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(fig_path, dpi=style.dpi, bbox_inches="tight", facecolor="white")
@@ -401,9 +404,19 @@ def main():
         raise ValueError("This plot script is only for temperature experiments.")
 
     exp_path = Path(build_experiment_path(cfg))
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, "rstd")
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name="rstd",
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature RSTD plotting ===")
+    print(f"Spatial domain  : {spatial_ctx.eval_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -453,15 +466,8 @@ def main():
     )
 
     print("[STEP] Plotting annual RSTD boxplot")
-    rstd_masked = apply_shape_mask(
-        rstd,
-        lons,
-        lats,
-        cfg.shapefile_path,
-    )
-
     plot_annual_rstd_boxplot(
-        annual_array=rstd_masked,
+        annual_array=rstd,
         fig_path=plot_dir / "annual_rstd_boxplot.png",
         title="Annual RSTD distribution",
         ylabel="RSTD",

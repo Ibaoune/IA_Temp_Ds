@@ -10,7 +10,7 @@ import yaml
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_metric_dirs
+from ...common import ensure_spatial_metric_dirs, get_spatial_context
 from ...map_utils import (
     apply_shape_mask,
     plot_metric_map,
@@ -125,13 +125,13 @@ def plot_seasonal_rmse_panel(
 
     style = MapStyle()
 
-    masked_arrays = [
+    display_arrays = [
         apply_shape_mask(arr, lons, lats, shapefile_path)
         for arr in seasonal_arrays
     ]
 
     merged_valid = []
-    for arr in masked_arrays:
+    for arr in seasonal_arrays:
         vals = flatten_valid(arr)
         if vals.size > 0:
             merged_valid.append(vals)
@@ -162,12 +162,13 @@ def plot_seasonal_rmse_panel(
     )
 
     for i, ax in enumerate(axes):
-        arr = masked_arrays[i]
+        arr_display = display_arrays[i]
+        arr_stats = seasonal_arrays[i]
 
         im = ax.pcolormesh(
             lon2d,
             lat2d,
-            arr,
+            arr_display,
             cmap=cmap,
             norm=norm,
             shading="auto",
@@ -191,7 +192,7 @@ def plot_seasonal_rmse_panel(
         gl.ylabel_style = {"size": style.tick_labelsize}
 
         ax.set_title(SEASON_TITLES[SEASON_ORDER[i]], fontsize=style.panel_title_fontsize, fontweight="bold")
-        add_stats_box(ax, arr, unit="°C")
+        add_stats_box(ax, arr_stats, unit="°C")
 
     cbar_ax = fig.add_axes([0.92, 0.16, 0.02, 0.68])
     cbar = fig.colorbar(im, cax=cbar_ax, orientation="vertical")
@@ -245,9 +246,19 @@ def main():
     )
 
     exp_path = Path(build_experiment_path(cfg))
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, metric_name)
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name=metric_name,
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature RMSE plotting ===")
+    print(f"Spatial domain  : {spatial_ctx.eval_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -287,6 +298,8 @@ def main():
                 n_bins=9,
                 robust=args.robust,
                 show=args.show,
+                apply_mask_in_plot=True,
+                stats_arr=annual_arr,
             )
         else:
             print("[WARNING] Annual RMSE file not found.")
@@ -337,6 +350,8 @@ def main():
             n_bins=9,
             robust=args.robust,
             show=args.show,
+            apply_mask_in_plot=True,
+            stats_arr=arr,
         )
 
     if len(seasonal_arrays) == 4:
@@ -360,13 +375,8 @@ def main():
     if len(seasonal_arrays) == 4:
         print("[STEP] Plotting seasonal RMSE boxplot")
 
-        seasonal_arrays_masked = [
-            apply_shape_mask(arr, seasonal_lons, seasonal_lats, cfg.shapefile_path)
-            for arr in seasonal_arrays
-        ]
-
         plot_seasonal_boxplot(
-            seasonal_arrays=seasonal_arrays_masked,
+            seasonal_arrays=seasonal_arrays,
             labels=seasonal_labels,
             fig_path=plot_dir / f"seasonal_rmse_boxplot_{strategy}.png",
             title="Seasonal RMSE distribution",
@@ -379,15 +389,8 @@ def main():
     if annual_arr is not None:
         print("[STEP] Plotting annual RMSE boxplot")
 
-        annual_arr_masked = apply_shape_mask(
-            annual_arr,
-            annual_lons,
-            annual_lats,
-            cfg.shapefile_path,
-        )
-
         plot_annual_boxplot(
-            annual_array=annual_arr_masked,
+            annual_array=annual_arr,
             fig_path=plot_dir / f"annual_rmse_boxplot_{strategy}.png",
             title="Annual RMSE distribution",
             ylabel="RMSE (°C)",

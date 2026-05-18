@@ -11,13 +11,16 @@ from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
 from ...common import (
     align_prediction_and_observation,
+    apply_spatial_context_to_inputs,
     convert_temperature_to_celsius,
-    ensure_metric_dirs,
+    ensure_spatial_metric_dirs,
+    get_spatial_context,
     open_temperature_dataarray,
     save_json,
     save_summary_csv,
     spatial_summary,
     subset_test_period,
+    validate_spatial_config,
 )
 
 
@@ -95,6 +98,8 @@ def validate_metric_config(metric_cfg: dict):
                 "time.start_date and time.end_date must be provided when "
                 "use_test_period_from_main_config = false"
             )
+
+    validate_spatial_config(metric_cfg)
         
 # =========================================================
 # Paths / config-driven resolvers
@@ -236,6 +241,12 @@ def main():
     metric_name = metric_cfg["metric"]["name"]
     min_valid = int(metric_cfg["metric"].get("min_valid", 10))
 
+    spatial_ctx = get_spatial_context(
+        metric_cfg=metric_cfg,
+        cfg=cfg,
+        project_root=PROJECT_ROOT,
+    )
+
     pred_var = metric_cfg["data"].get("prediction_var", "air_temperature")
     obs_var = metric_cfg["data"].get("reference_var", None)
     pred_units = metric_cfg["data"].get("prediction_units", None)
@@ -253,9 +264,15 @@ def main():
     if not obs_path.exists():
         raise FileNotFoundError(f"Observation file not found: {obs_path}")
 
-    data_dir, plot_dir = ensure_metric_dirs(exp_path, metric_name)
+    data_dir, plot_dir = ensure_spatial_metric_dirs(
+        exp_path=exp_path,
+        metric_name=metric_name,
+        eval_domain=spatial_ctx.eval_domain,
+    )
 
     print("=== Temperature AC1 postprocessing ===")
+    print(f"Spatial domain   : {spatial_ctx.eval_domain}")
+    print(f"Save mask        : {spatial_ctx.save_mask}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Experiment root : {exp_path}")
@@ -281,6 +298,15 @@ def main():
     pred, obs = align_prediction_and_observation(pred, obs)
     print(f"Aligned shape    : pred={pred.shape}, obs={obs.shape}")
 
+    pred, obs, spatial_mask = apply_spatial_context_to_inputs(
+        pred=pred,
+        obs=obs,
+        spatial_ctx=spatial_ctx,
+    )
+
+    print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
+    print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
+
     ac1_pred, ac1_obs, bac1 = compute_ac1_fields(
         pred=pred,
         obs=obs,
@@ -301,6 +327,8 @@ def main():
     ds_out.attrs["time_start"] = str(start_date)
     ds_out.attrs["time_end"] = str(end_date)
     ds_out.attrs["min_valid_pairs"] = min_valid
+    ds_out.attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+    ds_out.attrs["mask_applied_before_compute"] = "true"
 
     ds_out["ac1_pred"].attrs["long_name"] = "Lag-1 autocorrelation - prediction"
     ds_out["ac1_pred"].attrs["units"] = "dimensionless"
@@ -312,34 +340,36 @@ def main():
     ds_out["bac1"].attrs["units"] = "dimensionless"
     ds_out["bac1"].attrs["description"] = "bac1 = ac1_pred - ac1_obs"
 
+    for var_name in ["ac1_pred", "ac1_obs", "bac1"]:
+        ds_out[var_name].attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
+        ds_out[var_name].attrs["mask_applied_before_compute"] = "true"
+
+    if spatial_ctx.save_mask:
+        ds_out["spatial_mask"] = spatial_mask.astype("int8")
+
     out_nc = data_dir / "ac1_annual_mean_period.nc"
 
     if save_netcdf:
         ds_out.to_netcdf(out_nc)
 
     bac1_stats = spatial_summary(ds_out["bac1"])
+    summary_row = {
+        "metric": "bac1",
+        "min_valid_pairs": min_valid,
+        "spatial_eval_domain": spatial_ctx.eval_domain,
+        **bac1_stats,
+        "file": str(out_nc) if save_netcdf else "",
+    }
 
     if save_summary_json:
         save_json(
-            {
-                "metric": "ac1",
-                "min_valid_pairs": min_valid,
-                "file": str(out_nc) if save_netcdf else "",
-                "bac1": bac1_stats,
-            },
+            summary_row,
             data_dir / "summary_ac1_annual_mean_period.json",
         )
 
     if save_summary_csv_flag:
         save_summary_csv(
-            [
-                {
-                    "metric": "bac1",
-                    "min_valid_pairs": min_valid,
-                    **bac1_stats,
-                    "file": str(out_nc) if save_netcdf else "",
-                }
-            ],
+            [summary_row],
             data_dir / "ac1_summary.csv",
         )
         print(f"Saved summary CSV: {data_dir / 'ac1_summary.csv'}")

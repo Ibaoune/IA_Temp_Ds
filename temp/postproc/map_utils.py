@@ -14,7 +14,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import geopandas as gpd
 import regionmask
-
+import cartopy.io.shapereader as shpreader
 
 # ==========================================================
 # Style
@@ -308,6 +308,116 @@ def apply_shape_mask(
 
     return da_masked.values
 
+# ==========================================================
+# Spatial evaluation masks
+# ==========================================================
+
+VALID_SPATIAL_DOMAINS = {"full_domain", "morocco_shape", "land"}
+
+
+def _template_2d_from_dataarray(da: xr.DataArray) -> xr.DataArray:
+    """
+    Convert a DataArray to a 2D lat/lon template.
+
+    Works for:
+      - (lat, lon)
+      - (time, lat, lon)
+      - (year, lat, lon)
+    """
+    out = da
+
+    for dim in list(out.dims):
+        if dim not in {"lat", "lon"}:
+            out = out.isel({dim: 0})
+
+    if "lat" not in out.dims or "lon" not in out.dims:
+        raise ValueError(f"Expected lat/lon dimensions, got dims={out.dims}")
+
+    return out
+
+
+def build_spatial_mask(
+    da: xr.DataArray,
+    eval_domain: str,
+    shapefile_path: str | Path | None = None,
+    land_shapefile_path: str | Path | None = None,
+) -> xr.DataArray:
+    """
+    Build a 2D boolean spatial mask.
+
+    eval_domain:
+      - full_domain   : all grid cells
+      - morocco_shape : cells inside Morocco shapefile
+      - land          : land cells inside the current lat/lon domain
+    """
+    if eval_domain not in VALID_SPATIAL_DOMAINS:
+        raise ValueError(
+            f"Unknown eval_domain={eval_domain!r}. "
+            f"Choose one of {sorted(VALID_SPATIAL_DOMAINS)}"
+        )
+
+    template = _template_2d_from_dataarray(da)
+
+    if eval_domain == "full_domain":
+        mask = xr.full_like(template, True, dtype=bool)
+        mask.name = "spatial_mask"
+        mask.attrs["eval_domain"] = "full_domain"
+        return mask
+
+    if eval_domain == "morocco_shape":
+        if shapefile_path is None:
+            raise ValueError(
+                "shapefile_path is required when eval_domain='morocco_shape'"
+            )
+
+        shape_gdf = load_project_shape(shapefile_path).dissolve().reset_index(drop=True)
+        shape_gdf["name"] = ["morocco"]
+
+        regions = regionmask.from_geopandas(
+            shape_gdf,
+            names="name",
+            name="morocco",
+        )
+
+        mask = regions.mask(template)
+        mask_bool = xr.where(~mask.isnull(), True, False)
+        mask_bool.name = "spatial_mask"
+        mask_bool.attrs["eval_domain"] = "morocco_shape"
+        return mask_bool
+
+    if eval_domain == "land":
+        if land_shapefile_path in (None, "", "null"):
+            land_path = shpreader.natural_earth(
+                resolution="10m",
+                category="physical",
+                name="land",
+            )
+        else:
+            land_path = land_shapefile_path
+
+        land_gdf = gpd.read_file(land_path)
+
+        if land_gdf.crs is None:
+            land_gdf = land_gdf.set_crs("EPSG:4326")
+        else:
+            land_gdf = land_gdf.to_crs("EPSG:4326")
+
+        land_gdf = land_gdf.dissolve().reset_index(drop=True)
+        land_gdf["name"] = ["land"]
+
+        regions = regionmask.from_geopandas(
+            land_gdf,
+            names="name",
+            name="land",
+        )
+
+        mask = regions.mask(template)
+        mask_bool = xr.where(~mask.isnull(), True, False)
+        mask_bool.name = "spatial_mask"
+        mask_bool.attrs["eval_domain"] = "land"
+        return mask_bool
+
+    raise RuntimeError("Unreachable spatial mask case.")
 
 # ==========================================================
 # Annotation helpers
@@ -370,6 +480,9 @@ def plot_metric_map(
     n_bins: int = 11,
     robust: bool = True,
     show: bool = False,
+    apply_mask_in_plot: bool = True,
+    stats_arr: np.ndarray | None = None,
+    stats_label: str | None = None,
     style: MapStyle = MapStyle(),
 ) -> Path:
     """
@@ -382,22 +495,36 @@ def plot_metric_map(
         - "correlation"
     """
     arr = np.asarray(arr, dtype=float)
-    arr = apply_shape_mask(
-        arr=arr,
-        lons=lons,
-        lats=lats,
-        shapefile_path=shapefile_path,
-    )
+
+    # Array used for statistics and color levels.
+    # This must remain the compute-domain field, e.g. land/full_domain/morocco_shape.
+    if stats_arr is None:
+        arr_stats = arr
+    else:
+        arr_stats = np.asarray(stats_arr, dtype=float)
+
+    # Array used only for visual display.
+    # If apply_mask_in_plot=True, the map is clipped visually to Morocco,
+    # but statistics still come from arr_stats.
+    if apply_mask_in_plot:
+        arr_display = apply_shape_mask(
+            arr=arr,
+            lons=lons,
+            lats=lats,
+            shapefile_path=shapefile_path,
+        )
+    else:
+        arr_display = arr
 
     lon2d, lat2d = _get_lon_lat_2d(np.asarray(lons), np.asarray(lats))
 
     if metric_type == "bias":
-        levels = compute_symmetric_levels(arr, n_bins=n_bins, robust=robust)
+        levels = compute_symmetric_levels(arr_stats, n_bins=n_bins, robust=robust)
         cmap = get_bias_cmap(len(levels) - 1)
     elif metric_type in {"temperature", "rmse"}:
         force_zero_min = (metric_type == "rmse")
         levels = compute_sequential_levels(
-            arr,
+            arr_stats,
             n_bins=n_bins,
             robust=robust,
             force_zero_min=force_zero_min,
@@ -420,14 +547,13 @@ def plot_metric_map(
     im = ax.pcolormesh(
         lon2d,
         lat2d,
-        arr,
+        arr_display,
         cmap=cmap,
         norm=norm,
         shading="auto",
         transform=ccrs.PlateCarree(),
         zorder=1,
     )
-
     ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.COASTLINE, linewidth=style.coast_linewidth, zorder=4)
     draw_project_boundaries(ax, shape_gdf)
@@ -456,7 +582,7 @@ def plot_metric_map(
     cbar.ax.tick_params(labelsize=style.tick_labelsize)
 
     ax.set_title(title, fontsize=style.title_fontsize, pad=10)
-    add_stats_box(ax, arr, unit=unit if unit else None)
+    add_stats_box(ax, arr_stats, unit=unit if unit else None)
 
     fig_path = Path(fig_path)
     fig_path.parent.mkdir(parents=True, exist_ok=True)
@@ -485,6 +611,7 @@ def plot_seasonal_bias_panel(
     n_bins: int = 11,
     robust: bool = True,
     show: bool = False,
+    apply_mask_in_plot: bool = True,
     style: MapStyle = MapStyle(),
 ) -> Path:
     """
@@ -497,13 +624,21 @@ def plot_seasonal_bias_panel(
     if season_titles is None:
         season_titles = ["Winter (DJF)", "Spring (MAM)", "Summer (JJA)", "Autumn (SON)"]
 
-    masked_arrays = [
-        apply_shape_mask(arr, lons, lats, shapefile_path)
+    stats_arrays = [
+        np.asarray(arr, dtype=float)
         for arr in seasonal_arrays
     ]
 
+    if apply_mask_in_plot:
+        display_arrays = [
+            apply_shape_mask(arr, lons, lats, shapefile_path)
+            for arr in stats_arrays
+        ]
+    else:
+        display_arrays = stats_arrays
     merged_valid = []
-    for arr in masked_arrays:
+
+    for arr in stats_arrays:
         vals = flatten_valid(arr)
         if vals.size > 0:
             merged_valid.append(vals)
@@ -529,12 +664,13 @@ def plot_seasonal_bias_panel(
     )
 
     for i, ax in enumerate(axes):
-        arr = masked_arrays[i]
+        arr_display = display_arrays[i]
+        arr_stats = stats_arrays[i]
 
         im = ax.pcolormesh(
             lon2d,
             lat2d,
-            arr,
+            arr_display,
             cmap=cmap,
             norm=norm,
             shading="auto",
@@ -558,7 +694,7 @@ def plot_seasonal_bias_panel(
         gl.ylabel_style = {"size": style.tick_labelsize}
 
         ax.set_title(season_titles[i], fontsize=style.panel_title_fontsize, fontweight="bold")
-        add_stats_box(ax, arr, unit=unit)
+        add_stats_box(ax, arr_stats, unit=unit)
 
     cbar_ax = fig.add_axes([0.92, 0.16, 0.02, 0.68])
     cbar = fig.colorbar(im, cax=cbar_ax, orientation="vertical")
