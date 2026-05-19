@@ -10,9 +10,10 @@ import yaml
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_spatial_metric_dirs, get_spatial_context
+from ...common import ensure_spatial_metric_dirs, get_spatial_context, get_plot_display_domain
 from ...map_utils import (
-    apply_shape_mask,
+    get_display_array,
+    get_plot_extent,
     plot_metric_map,
     plot_seasonal_bias_panel,
     plot_seasonal_bias_boxplot,
@@ -144,6 +145,7 @@ def plot_p98_comparison_panel(
     fig_path: Path,
     robust: bool = True,
     show: bool = False,
+    display_domain: str = "morocco_shape",
 ) -> Path:
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
@@ -151,8 +153,8 @@ def plot_p98_comparison_panel(
 
     style = MapStyle()
 
-    obs_display = apply_shape_mask(p98_obs, lons, lats, shapefile_path)
-    pred_display = apply_shape_mask(p98_pred, lons, lats, shapefile_path)
+    obs_display = get_display_array(p98_obs, lons, lats, shapefile_path, display_domain)
+    pred_display = get_display_array(p98_pred, lons, lats, shapefile_path, display_domain)
 
     merged = np.concatenate(
         [
@@ -175,6 +177,9 @@ def plot_p98_comparison_panel(
 
     shape_gdf = load_project_shape(shapefile_path)
     lon2d, lat2d = _get_lon_lat_2d(np.asarray(lons), np.asarray(lats))
+    extent = get_plot_extent(
+        lons, lats, lon_min, lon_max, lat_min, lat_max, display_domain
+    )
 
     fig, axes = plt.subplots(
         1,
@@ -203,7 +208,7 @@ def plot_p98_comparison_panel(
             zorder=1,
         )
 
-        ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+        ax.set_extent(extent, crs=ccrs.PlateCarree())
         ax.add_feature(cfeature.COASTLINE, linewidth=style.coast_linewidth, zorder=4)
         draw_project_boundaries(ax, shape_gdf)
 
@@ -277,6 +282,7 @@ def main():
         cfg=cfg,
         project_root=PROJECT_ROOT,
     )
+    display_domain = get_plot_display_domain(metric_cfg)
     data_dir, plot_dir = ensure_spatial_metric_dirs(
         exp_path=exp_path,
         metric_name="b98",
@@ -285,6 +291,7 @@ def main():
 
     print("=== Temperature B-98 plotting ===")
     print(f"Spatial domain  : {spatial_ctx.eval_domain}")
+    print(f"Display domain  : {display_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -320,6 +327,7 @@ def main():
                 fig_path=plot_dir / "annual_p98_comparison.png",
                 robust=args.robust,
                 show=args.show,
+                display_domain=display_domain,
             )
 
             print("[STEP] Plotting annual B-98 map")
@@ -339,7 +347,8 @@ def main():
                 n_bins=11,
                 robust=args.robust,
                 show=args.show,
-                apply_mask_in_plot=True,
+                apply_mask_in_plot=(display_domain == "morocco_shape"),
+                display_domain=display_domain,
                 stats_arr=annual_b98,
             )
         else:
@@ -387,7 +396,8 @@ def main():
             n_bins=11,
             robust=args.robust,
             show=args.show,
-            apply_mask_in_plot=True,
+            apply_mask_in_plot=(display_domain == "morocco_shape"),
+            display_domain=display_domain,
             stats_arr=b98,
         )
 
@@ -409,6 +419,7 @@ def main():
             n_bins=11,
             robust=args.robust,
             show=args.show,
+            display_domain=display_domain,
         )
     else:
         print("[WARNING] Seasonal B-98 panel not created: one or more seasonal files are missing.")

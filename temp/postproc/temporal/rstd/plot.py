@@ -10,9 +10,10 @@ import yaml
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_spatial_metric_dirs, get_spatial_context
+from ...common import ensure_spatial_metric_dirs, get_spatial_context, get_plot_display_domain
 from ...map_utils import (
-    apply_shape_mask,
+    get_display_array,
+    get_plot_extent,
     flatten_valid,
     MapStyle,
     compute_sequential_levels,
@@ -132,6 +133,7 @@ def plot_std_comparison_panel(
     fig_path: Path,
     robust: bool = True,
     show: bool = False,
+    display_domain: str = "morocco_shape",
 ) -> Path:
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
@@ -139,8 +141,8 @@ def plot_std_comparison_panel(
 
     style = MapStyle()
 
-    obs_display = apply_shape_mask(std_obs, lons, lats, shapefile_path)
-    pred_display = apply_shape_mask(std_pred, lons, lats, shapefile_path)
+    obs_display = get_display_array(std_obs, lons, lats, shapefile_path, display_domain)
+    pred_display = get_display_array(std_pred, lons, lats, shapefile_path, display_domain)
 
     merged = np.concatenate([
         flatten_valid(std_obs),
@@ -161,6 +163,9 @@ def plot_std_comparison_panel(
 
     shape_gdf = load_project_shape(shapefile_path)
     lon2d, lat2d = _get_lon_lat_2d(np.asarray(lons), np.asarray(lats))
+    extent = get_plot_extent(
+        lons, lats, lon_min, lon_max, lat_min, lat_max, display_domain
+    )
 
     fig, axes = plt.subplots(
         1,
@@ -189,7 +194,7 @@ def plot_std_comparison_panel(
             zorder=1,
         )
 
-        ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+        ax.set_extent(extent, crs=ccrs.PlateCarree())
         ax.add_feature(cfeature.COASTLINE, linewidth=style.coast_linewidth, zorder=4)
         draw_project_boundaries(ax, shape_gdf)
 
@@ -245,6 +250,7 @@ def plot_single_rstd_map(
     fig_path: Path,
     robust: bool = True,
     show: bool = False,
+    display_domain: str = "morocco_shape",
 ) -> Path:
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
@@ -253,7 +259,7 @@ def plot_single_rstd_map(
     style = MapStyle()
 
     arr_stats = np.asarray(rstd, dtype=float)
-    arr_display = apply_shape_mask(rstd, lons, lats, shapefile_path)
+    arr_display = get_display_array(rstd, lons, lats, shapefile_path, display_domain)
 
     levels = compute_sequential_levels(
         arr_stats,
@@ -266,6 +272,9 @@ def plot_single_rstd_map(
 
     shape_gdf = load_project_shape(shapefile_path)
     lon2d, lat2d = _get_lon_lat_2d(np.asarray(lons), np.asarray(lats))
+    extent = get_plot_extent(
+        lons, lats, lon_min, lon_max, lat_min, lat_max, display_domain
+    )
 
     fig, ax = plt.subplots(
         figsize=style.figsize_single,
@@ -284,7 +293,7 @@ def plot_single_rstd_map(
         zorder=1,
     )
 
-    ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.COASTLINE, linewidth=style.coast_linewidth, zorder=4)
     draw_project_boundaries(ax, shape_gdf)
 
@@ -409,6 +418,7 @@ def main():
         cfg=cfg,
         project_root=PROJECT_ROOT,
     )
+    display_domain = get_plot_display_domain(metric_cfg)
     data_dir, plot_dir = ensure_spatial_metric_dirs(
         exp_path=exp_path,
         metric_name="rstd",
@@ -417,6 +427,7 @@ def main():
 
     print("=== Temperature RSTD plotting ===")
     print(f"Spatial domain  : {spatial_ctx.eval_domain}")
+    print(f"Display domain  : {display_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -448,6 +459,7 @@ def main():
         fig_path=plot_dir / "annual_std_comparison.png",
         robust=args.robust,
         show=args.show,
+        display_domain=display_domain,
     )
 
     print("[STEP] Plotting annual RSTD map")
@@ -463,6 +475,7 @@ def main():
         fig_path=plot_dir / "annual_rstd_map.png",
         robust=args.robust,
         show=args.show,
+        display_domain=display_domain,
     )
 
     print("[STEP] Plotting annual RSTD boxplot")

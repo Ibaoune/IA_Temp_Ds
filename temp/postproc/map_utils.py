@@ -313,6 +313,66 @@ def apply_shape_mask(
 # ==========================================================
 
 VALID_SPATIAL_DOMAINS = {"full_domain", "morocco_shape", "land"}
+VALID_DISPLAY_DOMAINS = {"morocco_shape", "land"}
+
+
+def normalize_display_domain(
+    display_domain: str | None,
+    default: str = "land",
+) -> str:
+    if display_domain in (None, "", "null"):
+        display_domain = default
+
+    display_domain = str(display_domain).strip()
+    if display_domain not in VALID_DISPLAY_DOMAINS:
+        raise ValueError(
+            f"plot.display_domain must be one of {sorted(VALID_DISPLAY_DOMAINS)}, "
+            f"got {display_domain!r}"
+        )
+
+    return display_domain
+
+
+def get_display_array(
+    arr: np.ndarray,
+    lons: np.ndarray,
+    lats: np.ndarray,
+    shapefile_path: str | Path,
+    display_domain: str,
+) -> np.ndarray:
+    display_domain = normalize_display_domain(display_domain)
+
+    if display_domain == "morocco_shape":
+        return apply_shape_mask(
+            arr=arr,
+            lons=lons,
+            lats=lats,
+            shapefile_path=shapefile_path,
+        )
+
+    return np.asarray(arr, dtype=float)
+
+
+def get_plot_extent(
+    lons: np.ndarray,
+    lats: np.ndarray,
+    lon_min: float,
+    lon_max: float,
+    lat_min: float,
+    lat_max: float,
+    display_domain: str,
+) -> list[float]:
+    display_domain = normalize_display_domain(display_domain)
+
+    if display_domain == "land":
+        return [
+            float(np.nanmin(lons)),
+            float(np.nanmax(lons)),
+            float(np.nanmin(lats)),
+            float(np.nanmax(lats)),
+        ]
+
+    return [lon_min, lon_max, lat_min, lat_max]
 
 
 def _template_2d_from_dataarray(da: xr.DataArray) -> xr.DataArray:
@@ -481,6 +541,7 @@ def plot_metric_map(
     robust: bool = True,
     show: bool = False,
     apply_mask_in_plot: bool = True,
+    display_domain: str | None = None,
     stats_arr: np.ndarray | None = None,
     stats_label: str | None = None,
     style: MapStyle = MapStyle(),
@@ -504,17 +565,26 @@ def plot_metric_map(
         arr_stats = np.asarray(stats_arr, dtype=float)
 
     # Array used only for visual display.
-    # If apply_mask_in_plot=True, the map is clipped visually to Morocco,
-    # but statistics still come from arr_stats.
-    if apply_mask_in_plot:
-        arr_display = apply_shape_mask(
-            arr=arr,
-            lons=lons,
-            lats=lats,
-            shapefile_path=shapefile_path,
-        )
-    else:
-        arr_display = arr
+    # Statistics still come from arr_stats.
+    if display_domain is None:
+        display_domain = "morocco_shape" if apply_mask_in_plot else "land"
+    display_domain = normalize_display_domain(display_domain)
+    arr_display = get_display_array(
+        arr=arr,
+        lons=lons,
+        lats=lats,
+        shapefile_path=shapefile_path,
+        display_domain=display_domain,
+    )
+    extent = get_plot_extent(
+        lons=lons,
+        lats=lats,
+        lon_min=lon_min,
+        lon_max=lon_max,
+        lat_min=lat_min,
+        lat_max=lat_max,
+        display_domain=display_domain,
+    )
 
     lon2d, lat2d = _get_lon_lat_2d(np.asarray(lons), np.asarray(lats))
 
@@ -554,7 +624,7 @@ def plot_metric_map(
         transform=ccrs.PlateCarree(),
         zorder=1,
     )
-    ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.COASTLINE, linewidth=style.coast_linewidth, zorder=4)
     draw_project_boundaries(ax, shape_gdf)
 
@@ -612,6 +682,7 @@ def plot_seasonal_bias_panel(
     robust: bool = True,
     show: bool = False,
     apply_mask_in_plot: bool = True,
+    display_domain: str | None = None,
     style: MapStyle = MapStyle(),
 ) -> Path:
     """
@@ -629,13 +700,22 @@ def plot_seasonal_bias_panel(
         for arr in seasonal_arrays
     ]
 
-    if apply_mask_in_plot:
-        display_arrays = [
-            apply_shape_mask(arr, lons, lats, shapefile_path)
-            for arr in stats_arrays
-        ]
-    else:
-        display_arrays = stats_arrays
+    if display_domain is None:
+        display_domain = "morocco_shape" if apply_mask_in_plot else "land"
+    display_domain = normalize_display_domain(display_domain)
+    display_arrays = [
+        get_display_array(arr, lons, lats, shapefile_path, display_domain)
+        for arr in stats_arrays
+    ]
+    extent = get_plot_extent(
+        lons=lons,
+        lats=lats,
+        lon_min=lon_min,
+        lon_max=lon_max,
+        lat_min=lat_min,
+        lat_max=lat_max,
+        display_domain=display_domain,
+    )
     merged_valid = []
 
     for arr in stats_arrays:
@@ -678,7 +758,7 @@ def plot_seasonal_bias_panel(
             zorder=1,
         )
 
-        ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+        ax.set_extent(extent, crs=ccrs.PlateCarree())
         ax.add_feature(cfeature.COASTLINE, linewidth=style.coast_linewidth, zorder=4)
         draw_project_boundaries(ax, shape_gdf)
 

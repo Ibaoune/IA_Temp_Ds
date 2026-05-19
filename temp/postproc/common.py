@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from .map_utils import (
     VALID_SPATIAL_DOMAINS,
     build_spatial_mask,
+    normalize_display_domain,
 )
 
 SEASONS = {
@@ -63,6 +64,15 @@ def validate_spatial_config(metric_cfg: dict) -> None:
             f"spatial.eval_domain must be one of {sorted(VALID_SPATIAL_DOMAINS)}, "
             f"got {eval_domain!r}"
         )
+
+
+def get_plot_display_domain(metric_cfg: dict) -> str:
+    plot_cfg = metric_cfg.get("plot", {})
+    return normalize_display_domain(
+        plot_cfg.get("display_domain", "land"),
+        default="land",
+    )
+
 
 def standardize_coords(ds: xr.Dataset) -> xr.Dataset:
     """

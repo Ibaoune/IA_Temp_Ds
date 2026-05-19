@@ -10,9 +10,10 @@ import matplotlib.pyplot as plt
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_spatial_metric_dirs, get_spatial_context
+from ...common import ensure_spatial_metric_dirs, get_spatial_context, get_plot_display_domain
 from ...map_utils import (
-    apply_shape_mask,
+    get_display_array,
+    get_plot_extent,
     plot_metric_map,
     plot_annual_bias_boxplot,
     plot_seasonal_bias_boxplot,
@@ -121,20 +122,30 @@ def plot_corr_with_significance(
     show: bool = False,
     stats_arr: np.ndarray | None = None,
     apply_mask_in_plot: bool = True,
+    display_domain: str | None = None,
 ):
     arr = corr_da.values
     lons, lats = get_lat_lon(corr_da)
     arr_stats = arr if stats_arr is None else np.asarray(stats_arr, dtype=float)
 
-    if apply_mask_in_plot:
-        arr_display = apply_shape_mask(
-            arr,
-            lons,
-            lats,
-            cfg.shapefile_path,
-        )
-    else:
-        arr_display = arr
+    if display_domain is None:
+        display_domain = "morocco_shape" if apply_mask_in_plot else "land"
+    arr_display = get_display_array(
+        arr,
+        lons,
+        lats,
+        cfg.shapefile_path,
+        display_domain,
+    )
+    extent = get_plot_extent(
+        lons,
+        lats,
+        cfg.lon_min,
+        cfg.lon_max,
+        cfg.lat_min,
+        cfg.lat_max,
+        display_domain,
+    )
 
     fig, ax = plt.subplots(figsize=(9, 7))
 
@@ -154,11 +165,12 @@ def plot_corr_with_significance(
     # Significativité : points noirs
     if sig_da is not None:
         sig_arr = sig_da.values
-        sig_masked = apply_shape_mask(
+        sig_masked = get_display_array(
             sig_arr,
             lons,
             lats,
             cfg.shapefile_path,
+            display_domain,
         )
 
         lon2d, lat2d = np.meshgrid(lons, lats)
@@ -175,8 +187,8 @@ def plot_corr_with_significance(
         )
 
     # Limites
-    ax.set_xlim(cfg.lon_min, cfg.lon_max)
-    ax.set_ylim(cfg.lat_min, cfg.lat_max)
+    ax.set_xlim(extent[0], extent[1])
+    ax.set_ylim(extent[2], extent[3])
 
     ax.set_title(title, fontsize=15, fontweight="bold")
     ax.set_xlabel("Longitude")
@@ -229,6 +241,7 @@ def plot_one_corr_type(
     exp_path: Path,
     selected_seasons: list[str],
     spatial_ctx,
+    display_domain: str,
     show: bool = False,
     robust: bool = False,
 ):
@@ -240,6 +253,7 @@ def plot_one_corr_type(
 
     print(f"\n=== Plotting {corr_type} ===")
     print(f"Spatial domain  : {spatial_ctx.eval_domain}")
+    print(f"Display domain  : {display_domain}")
     print(f"Input data dir  : {data_dir}")
     print(f"Output plot dir : {plot_dir}")
 
@@ -285,7 +299,8 @@ def plot_one_corr_type(
                 n_bins=10,
                 robust=robust,
                 show=show,
-                apply_mask_in_plot=True,
+                apply_mask_in_plot=(display_domain == "morocco_shape"),
+                display_domain=display_domain,
                 stats_arr=annual_arr,
             )
 
@@ -297,7 +312,8 @@ def plot_one_corr_type(
                 cfg=cfg,
                 show=show,
                 stats_arr=annual_arr,
-                apply_mask_in_plot=True,
+                apply_mask_in_plot=(display_domain == "morocco_shape"),
+                display_domain=display_domain,
             )
         else:
             print(f"[WARNING] Annual {corr_type} file not found.")
@@ -347,7 +363,8 @@ def plot_one_corr_type(
             n_bins=10,
             robust=robust,
             show=show,
-            apply_mask_in_plot=True,
+            apply_mask_in_plot=(display_domain == "morocco_shape"),
+            display_domain=display_domain,
             stats_arr=arr,
         )
 
@@ -359,7 +376,8 @@ def plot_one_corr_type(
             cfg=cfg,
             show=show,
             stats_arr=arr,
-            apply_mask_in_plot=True,
+            apply_mask_in_plot=(display_domain == "morocco_shape"),
+            display_domain=display_domain,
         )
 
     # Seasonal panel
@@ -382,6 +400,7 @@ def plot_one_corr_type(
             n_bins=10,
             robust=robust,
             show=show,
+            display_domain=display_domain,
         )
     else:
         print(f"[WARNING] Seasonal {corr_type} panel skipped.")
@@ -443,9 +462,11 @@ def main():
         cfg=cfg,
         project_root=PROJECT_ROOT,
     )
+    display_domain = get_plot_display_domain(metric_cfg)
 
     print("=== Temperature correlation plotting ===")
     print(f"Spatial domain  : {spatial_ctx.eval_domain}")
+    print(f"Display domain  : {display_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Experiment root : {exp_path}")
@@ -457,6 +478,7 @@ def main():
         exp_path=exp_path,
         selected_seasons=selected_seasons,
         spatial_ctx=spatial_ctx,
+        display_domain=display_domain,
         show=args.show,
         robust=args.robust,
     )
@@ -467,6 +489,7 @@ def main():
         exp_path=exp_path,
         selected_seasons=selected_seasons,
         spatial_ctx=spatial_ctx,
+        display_domain=display_domain,
         show=args.show,
         robust=args.robust,
     )

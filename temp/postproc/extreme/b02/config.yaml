@@ -17,6 +17,9 @@ spatial:
   # utilisé si eval_domain = "land"
   land_shapefile_path: null      # null => Natural Earth land polygons
 
+plot:
+  display_domain: "land"   # "morocco_shape" | "land"
+
 data:
   prediction_path: null
   prediction_var: "air_temperature"

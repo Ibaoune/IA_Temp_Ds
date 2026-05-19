@@ -10,9 +10,10 @@ import yaml
 
 from ....main.src.core.config import load_config
 from ....main.src.core.utils import build_experiment_path
-from ...common import ensure_spatial_metric_dirs, get_spatial_context
+from ...common import ensure_spatial_metric_dirs, get_spatial_context, get_plot_display_domain
 from ...map_utils import (
-    apply_shape_mask,
+    get_display_array,
+    get_plot_extent,
     plot_metric_map,
     plot_seasonal_bias_boxplot as plot_seasonal_boxplot,
     plot_annual_bias_boxplot as plot_annual_boxplot,
@@ -118,6 +119,7 @@ def plot_seasonal_rmse_panel(
     fig_path: Path,
     robust: bool = True,
     show: bool = False,
+    display_domain: str = "morocco_shape",
 ) -> Path:
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
@@ -126,7 +128,7 @@ def plot_seasonal_rmse_panel(
     style = MapStyle()
 
     display_arrays = [
-        apply_shape_mask(arr, lons, lats, shapefile_path)
+        get_display_array(arr, lons, lats, shapefile_path, display_domain)
         for arr in seasonal_arrays
     ]
 
@@ -152,6 +154,9 @@ def plot_seasonal_rmse_panel(
 
     shape_gdf = load_project_shape(shapefile_path)
     lon2d, lat2d = _get_lon_lat_2d(np.asarray(lons), np.asarray(lats))
+    extent = get_plot_extent(
+        lons, lats, lon_min, lon_max, lat_min, lat_max, display_domain
+    )
 
     fig, axes = plt.subplots(
         1,
@@ -176,7 +181,7 @@ def plot_seasonal_rmse_panel(
             zorder=1,
         )
 
-        ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+        ax.set_extent(extent, crs=ccrs.PlateCarree())
         ax.add_feature(cfeature.COASTLINE, linewidth=style.coast_linewidth, zorder=4)
         draw_project_boundaries(ax, shape_gdf)
 
@@ -251,6 +256,7 @@ def main():
         cfg=cfg,
         project_root=PROJECT_ROOT,
     )
+    display_domain = get_plot_display_domain(metric_cfg)
     data_dir, plot_dir = ensure_spatial_metric_dirs(
         exp_path=exp_path,
         metric_name=metric_name,
@@ -259,6 +265,7 @@ def main():
 
     print("=== Temperature RMSE plotting ===")
     print(f"Spatial domain  : {spatial_ctx.eval_domain}")
+    print(f"Display domain  : {display_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -298,7 +305,8 @@ def main():
                 n_bins=9,
                 robust=args.robust,
                 show=args.show,
-                apply_mask_in_plot=True,
+                apply_mask_in_plot=(display_domain == "morocco_shape"),
+                display_domain=display_domain,
                 stats_arr=annual_arr,
             )
         else:
@@ -350,7 +358,8 @@ def main():
             n_bins=9,
             robust=args.robust,
             show=args.show,
-            apply_mask_in_plot=True,
+            apply_mask_in_plot=(display_domain == "morocco_shape"),
+            display_domain=display_domain,
             stats_arr=arr,
         )
 
@@ -368,6 +377,7 @@ def main():
             fig_path=plot_dir / f"seasonal_rmse_panel_{strategy}.png",
             robust=args.robust,
             show=args.show,
+            display_domain=display_domain,
         )
     else:
         print("[WARNING] Seasonal RMSE panel not created: one or more seasonal files are missing.")

@@ -11,6 +11,7 @@ from ....main.src.core.utils import build_experiment_path
 from ...common import (
     ensure_spatial_metric_dirs,
     get_spatial_context,
+    get_plot_display_domain,
 )
 from ...map_utils import (
     plot_metric_map,
@@ -142,6 +143,7 @@ def main():
         cfg=cfg,
         project_root=PROJECT_ROOT,
     )
+    display_domain = get_plot_display_domain(metric_cfg)
     data_dir, plot_dir = ensure_spatial_metric_dirs(
         exp_path=exp_path,
         metric_name=metric_name,
@@ -150,6 +152,7 @@ def main():
 
     print("=== Temperature bias plotting ===")
     print(f"Spatial domain  : {spatial_ctx.eval_domain}")
+    print(f"Display domain  : {display_domain}")
     print(f"Metric config   : {metric_cfg_path}")
     print(f"Main config     : {main_cfg_path}")
     print(f"Input data dir  : {data_dir}")
@@ -192,7 +195,8 @@ def main():
                 n_bins=11,
                 robust=args.robust,
                 show=args.show,
-                apply_mask_in_plot=True,
+                apply_mask_in_plot=(display_domain == "morocco_shape"),
+                display_domain=display_domain,
                 stats_arr=annual_arr,
             )
         else:
@@ -247,7 +251,8 @@ def main():
             n_bins=11,
             robust=args.robust,
             show=args.show,
-            apply_mask_in_plot=True,
+            apply_mask_in_plot=(display_domain == "morocco_shape"),
+            display_domain=display_domain,
             stats_arr=arr,
         )
 
@@ -273,7 +278,8 @@ def main():
             n_bins=11,
             robust=args.robust,
             show=args.show,
-            apply_mask_in_plot=True,   
+            apply_mask_in_plot=(display_domain == "morocco_shape"),
+            display_domain=display_domain,
         )
     else:
         print("[WARNING] Seasonal panel not created: one or more seasonal files are missing.")
