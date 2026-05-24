@@ -14,7 +14,8 @@ quick_hist_summary.csv
 glm_pixel_explanation.csv
 temp/XAI/
 temp/main/inspect_glm.py
-temp/postproc/bano_compare/
+#temp/postproc/bano_compare/
+CRNM
 # Python
 __pycache__/
 *.py[cod]
