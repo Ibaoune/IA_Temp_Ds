@@ -4,7 +4,7 @@
 
 general:
   verbose: true
-  experiment: "unet1_era5_to_mswt"
+  experiment: "unet1_temperature" # for "unet_temperature" or "unet1_temperature"
   variable: "temp"
   target: "mswt"
   src: "era5"
@@ -64,7 +64,7 @@ dates:
 
 paths:
   root_dir: ""
-  results_dir: "./temp/results_test/"
+  results_dir: "./temp/results/"
   shapefile_path: "./morocco_shapefile/morocco_unified_fixed_v2.shp"
   era5_predictor_pattern: "./DATA1/predictors_era5/{var}_1979-2020_levels.nc"
   mswt_path: "./DATA1/predictand_mswet/mswt_1979_2020.nc"

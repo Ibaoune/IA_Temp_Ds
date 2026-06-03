@@ -8,8 +8,6 @@ L'etat actuel du projet documente une seule approche supportee :
 ERA5 -> MSWT
 ```
 
-Les anciennes approches non presentes dans le projet ne sont plus documentees ici.
-
 ## Structure utile
 
 ```text

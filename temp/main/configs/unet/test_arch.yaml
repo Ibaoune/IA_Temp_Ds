@@ -4,7 +4,7 @@
 
 general:
   verbose: true
-  experiment: "unet1_temperature" # for "unet_temperature" or "unet1_temperature"
+  experiment: "unet_temperature" # for "unet_temperature" or "unet1_temperature"
   variable: "temp"
   target: "mswt"
   src: "era5"
