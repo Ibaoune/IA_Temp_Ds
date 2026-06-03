@@ -12,6 +12,7 @@
 import yaml
 import torch
 import os
+from pathlib import Path
 
 
 # Helper: safe casting
@@ -29,6 +30,47 @@ def _to_bool(x):
     if isinstance(x, str):
         return x.lower() in ["true", "1", "yes", "y"]
     return bool(x)
+
+
+def resolve_model_config_path(configs_root, model_type, config_name=None):
+    configs_root = Path(configs_root)
+    model_key = str(model_type or "unet").lower()
+    unified_unet_dir = configs_root / "unet"
+
+    if config_name not in (None, "", "null"):
+        requested = Path(str(config_name))
+        if requested.is_absolute():
+            return requested
+
+        if len(requested.parts) > 1:
+            return configs_root / requested
+
+        if model_key in {"unet", "unet1"}:
+            candidate = unified_unet_dir / requested
+            legacy_candidate = configs_root / model_key / requested
+            if not candidate.exists() and legacy_candidate.exists():
+                return legacy_candidate
+            return candidate
+
+        return configs_root / model_key / requested
+
+    default_names = {
+        "unet": "config_arch.yaml",
+        "unet1": "config_arch1.yaml",
+    }
+    if model_key in default_names:
+        candidate = unified_unet_dir / default_names[model_key]
+        if candidate.exists():
+            return candidate
+
+    legacy_candidate = configs_root / model_key / "config.yaml"
+    if legacy_candidate.exists():
+        return legacy_candidate
+
+    if model_key in default_names:
+        return unified_unet_dir / default_names[model_key]
+
+    return legacy_candidate
 
 
 # Config class

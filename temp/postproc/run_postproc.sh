@@ -5,13 +5,13 @@ set -e
 # ==========================================================
 # General postprocessing runner
 # Usage:
-#   bash temp/postproc/run_postproc.sh lmdz250_to_lmdz35
-#   bash temp/postproc/run_postproc.sh lmdz35_2deg_to_lmdz35
+#   bash temp/postproc/run_postproc.sh
+#   bash temp/postproc/run_postproc.sh config
 #
 # Optional:
-#   bash temp/postproc/run_postproc.sh lmdz250_to_lmdz35 mean
-#   bash temp/postproc/run_postproc.sh lmdz250_to_lmdz35 extreme
-#   bash temp/postproc/run_postproc.sh lmdz250_to_lmdz35 temporal
+#   bash temp/postproc/run_postproc.sh config mean
+#   bash temp/postproc/run_postproc.sh config extreme
+#   bash temp/postproc/run_postproc.sh config temporal
 # ==========================================================
 
 echo "======================================"
@@ -34,34 +34,18 @@ CONFIG_NAME="$1"
 GROUP="$2"
 
 if [ -z "$CONFIG_NAME" ]; then
-    echo ""
-    echo "Choose a postprocessing config:"
-    echo "1) lmdz250_to_lmdz35"
-    echo "2) lmdz35_2deg_to_lmdz35"
-    echo "3) era5_to_mswt"
-    echo ""
-    read -p "Enter choice [1-3]: " choice
-
-    case "$choice" in
-        1)
-            CONFIG_NAME="lmdz250_to_lmdz35"
-            ;;
-        2)
-            CONFIG_NAME="lmdz35_2deg_to_lmdz35"
-            ;;
-        3)
-            CONFIG_NAME="era5_to_mswt"
-            ;;
-        *)
-            echo "[ERROR] Invalid choice."
-            exit 1
-            ;;
-    esac
+    CONFIG_NAME="config"
 fi
 
 # Add .yaml if user did not provide it
 if [[ "$CONFIG_NAME" != *.yaml ]]; then
     CONFIG_NAME="${CONFIG_NAME}.yaml"
+fi
+
+if [[ "$CONFIG_NAME" != "config.yaml" ]]; then
+    echo "[WARNING] Config '$CONFIG_NAME' is not supported by the current project."
+    echo "[WARNING] Ignoring it and using config.yaml."
+    CONFIG_NAME="config.yaml"
 fi
 
 # Default group = all

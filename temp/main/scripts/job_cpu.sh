@@ -13,6 +13,7 @@
 ########################################
 train="yes"
 validation="yes"
+MAIN_CONFIG="${MAIN_CONFIG:-temp/main/configs/unet/test_arch1.yaml}"
 ########################################
 
 # Activate Conda environment
@@ -28,16 +29,17 @@ echo "======================================"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Start time: $(date)"
 echo "Train: $train | Validation: $validation"
+echo "Config: $MAIN_CONFIG"
 echo "======================================"
 
 if [[ "$train" == "yes" ]]; then
     echo "[INFO] Running training..."
-    python3 -u temp/main/train.py temp/main/configs/unet1/test.yaml
+    python3 -u temp/main/train.py "$MAIN_CONFIG"
 fi
 
 if [[ "$validation" == "yes" ]]; then
     echo "[INFO] Running validation..."
-    python3 -u temp/main/eval.py temp/main/configs/unet1/test.yaml
+    python3 -u temp/main/eval.py "$MAIN_CONFIG"
 fi
 
 if [[ "$train" != "yes" && "$validation" != "yes" ]]; then

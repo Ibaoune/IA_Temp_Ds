@@ -17,11 +17,15 @@
 ########################################
 train="yes"        # yes = activate training
 validation="yes"   # yes = activate validation
+MAIN_CONFIG="${MAIN_CONFIG:-temp/main/configs/unet/test_arch1.yaml}"
 ########################################
 
 # Activer l'environnement Conda
 source ~/.bashrc
 conda activate clean_env_Pytorch
+
+# Run from project root, whatever the submission directory is.
+cd "$(dirname "$0")/../../.."
 
 # Afficher les infos GPU (utile pour debug)
 echo "Allocated GPU(s):"
@@ -42,12 +46,14 @@ nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used 
 
 if [[ "$train" == "yes" ]]; then
     echo "Running training on GPU..."
-    python3 -u train.py
+    echo "Config: $MAIN_CONFIG"
+    python3 -u temp/main/train.py "$MAIN_CONFIG"
 fi
 
 if [[ "$validation" == "yes" ]]; then
     echo "Running validation on GPU..."
-    python3 -u eval.py
+    echo "Config: $MAIN_CONFIG"
+    python3 -u temp/main/eval.py "$MAIN_CONFIG"
 fi
 
 if [[ "$train" != "yes" && "$validation" != "yes" ]]; then
@@ -60,4 +66,3 @@ fi
 end_time=$(date +%s)
 runtime=$((end_time - start_time))
 echo "Job ${SLURM_JOB_ID} completed in $runtime seconds."
-

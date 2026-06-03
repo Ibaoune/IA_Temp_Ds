@@ -15,6 +15,7 @@ glm_pixel_explanation.csv
 temp/XAI/
 temp/main/inspect_glm.py
 #temp/postproc/bano_compare/
+precip
 CRNM
 # Python
 __pycache__/
@@ -23,3 +24,7 @@ __pycache__/
 
 # Logs
 log.txt
+
+#configs
+temp/main/configs/unet/lmdz*.yaml
+temp/postproc/**/lmdz*.yaml

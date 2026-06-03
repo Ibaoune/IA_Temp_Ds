@@ -4,10 +4,10 @@
 
 general:
   verbose: true
-  experiment: "unet1_lmdz250_to_lmdz35" # for "unet_temperature" or "unet1_temperature"
+  experiment: "unet1_temperature" # for "unet_temperature" or "unet1_temperature"
   variable: "temp"
-  target: "lmdz35"
-  src: "lmdz250"
+  target: "mswt"
+  src: "era5"
   model_type: "unet1" # for "unet" or "unet1"
   interpolation_type: "linear"
   variables: ["z", "q", "t", "u", "v"]
@@ -16,7 +16,7 @@ general:
 
 training:
   learning_rate: 1e-3
-  epochs: 30
+  epochs: 5
   batch_size: 4 # le nombre d’exemples envoyés au modèle en une seule itération.
   loss_type: "gaussian" 
   norm_mode: "gridbox"         
@@ -57,14 +57,14 @@ region:
 dates:
   train:
     start: "1980-01-01"
-    end: "1982-12-31"
+    end: "1980-01-31"
   test:
-    start: "1983-01-01"
-    end: "1983-12-31"
+    start: "1981-01-01"
+    end: "1981-01-15"
 
 paths:
   root_dir: ""
-  results_dir: "./temp/results_test_app1/"
+  results_dir: "./temp/results_test/"
   shapefile_path: "./morocco_shapefile/morocco_unified_fixed_v2.shp"
-  lmdz250_predictor_pattern: "./DATA1/lmdz_250/present/all_Mor/{lmdz_var}-{suffix}.nc"
-  lmdz35_path: "./DATA1/predictand_lmdz/t2m_hist_ATM_DA_1979-2014_lat19to38_lon-20to1.nc"
+  era5_predictor_pattern: "./DATA1/predictors_era5/{var}_1979-2020_levels.nc"
+  mswt_path: "./DATA1/predictand_mswet/mswt_1979_2020.nc"

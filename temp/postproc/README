@@ -1,866 +1,160 @@
-# Postprocessing des expériences de descente d’échelle
+# Postprocessing
 
-Ce dossier contient les scripts de post-traitement utilisés pour évaluer les sorties des modèles de descente d’échelle statistique.
+Ce dossier contient les metriques et figures de post-traitement pour les predictions du pipeline.
 
-Les métriques comparent les prédictions produites par le modèle IA avec une référence cible.
-
-Dans le cas général :
+L'etat actuel du projet documente la configuration principale :
 
 ```text
-prediction = sortie du modèle IA
-reference  = cible réelle
+ERA5 -> MSWT
 ```
 
-Exemples :
+Les configs utilisees par defaut s'appellent :
 
 ```text
-ERA5 → MSWT
-prediction = UNet(ERA5)
-reference  = MSWT
+config.yaml
 ```
+
+Chaque dossier de metrique contient sa propre config `config.yaml`, qui pointe vers la config principale :
 
 ```text
-LMDZ250 → LMDZ35
-prediction = UNet(LMDZ250)
-reference  = LMDZ35
+temp/main/configs/unet/config_arch1.yaml
 ```
 
-```text
-LMDZ35 interpolé à 2° → LMDZ35
-prediction = UNet(LMDZ35 dégradé à 2°)
-reference  = LMDZ35
-```
-
----
-
-# 1. Organisation du dossier
+## Structure
 
 ```text
 temp/postproc/
-│
 ├── mean/
 │   ├── bias/
 │   ├── rmse/
 │   └── correlation/
-│
 ├── extreme/
 │   ├── b02/
 │   ├── b98/
 │   ├── cams/
 │   └── wams/
-│
 ├── temporal/
 │   ├── ac1/
 │   └── rstd/
-│
-├── common.py
-├── map_utils.py
-├── seasonal_plot.py
+├── bano_compare/
+├── explore_config.yaml
 └── run_postproc.sh
 ```
 
-Chaque sous-dossier de métrique contient généralement :
+## Lancer tout le postprocessing
 
-```text
-metric_name/
-├── config.yaml
-├── compute_script.py
-└── plot.py
-```
-
-Exemple :
-
-```text
-mean/bias/
-├── bias.py
-├── plot.py
-├── config.yaml
-├── lmdz250_to_lmdz35.yaml
-└── lmdz35_to_lmdz35.yaml
-```
-
----
-
-# 2. Principe général
-
-Les scripts de postprocessing suivent la même logique :
-
-1. Lire le fichier YAML de la métrique.
-2. Lire le fichier de configuration principal du modèle IA via `project.main_config_path`.
-3. Trouver automatiquement le dossier de l’expérience.
-4. Charger la prédiction sauvegardée par `eval.py`.
-5. Charger la référence cible depuis le `target_path` du config principal.
-6. Restreindre les données à la période de test.
-7. Convertir les températures en °C si nécessaire.
-8. Aligner les dimensions `time`, `lat`, `lon`.
-9. Calculer la métrique.
-10. Sauvegarder les résultats sous forme de NetCDF, JSON, CSV et figures.
-
----
-
-# 3. Structure générale d’un fichier YAML de métrique
-
-Chaque métrique possède son propre fichier YAML.
-
-Exemple pour l’approche `LMDZ250 → LMDZ35` :
-
-```yaml
-project:
-  main_config_path: "./temp/main/configs/unet1/lmdz250_to_lmdz35.yaml"
-
-metric:
-  name: "bias"
-
-data:
-  prediction_path: null
-  prediction_var: "air_temperature"
-  prediction_units: null
-
-  reference_path: null
-  reference_var: "t2m"
-  reference_units: null
-
-time:
-  use_test_period_from_main_config: true
-  start_date: null
-  end_date: null
-
-output:
-  save_netcdf: true
-  save_summary_json: true
-  save_summary_csv: true
-```
-
-Si `prediction_path` est `null`, le script cherche automatiquement la prédiction dans le dossier de l’expérience.
-
-Si `reference_path` est `null`, le script utilise automatiquement le `target_path` défini dans le config principal.
-
----
-
-# 4. Variables utilisées
-
-## 4.1 Prédiction du modèle
-
-Les prédictions générées par `eval.py` sont généralement sauvegardées avec la variable :
-
-```yaml
-prediction_var: "air_temperature"
-```
-
-## 4.2 Référence MSWT
-
-Pour l’approche `ERA5 → MSWT`, la référence est MSWT.
-
-Selon le fichier, la variable peut être :
-
-```yaml
-reference_var: "air_temperature"
-```
-
-ou bien :
-
-```yaml
-reference_var: null
-```
-
-si le script arrive à l’inférer automatiquement.
-
-## 4.3 Référence LMDZ35
-
-Pour les approches LMDZ, la référence est LMDZ35.
-
-Dans les fichiers actuels, la variable est :
-
-```yaml
-reference_var: "t2m"
-```
-
-Donc pour les approches :
-
-```text
-LMDZ250 → LMDZ35
-LMDZ35 2° → LMDZ35
-```
-
-il faut utiliser :
-
-```yaml
-prediction_var: "air_temperature"
-reference_var: "t2m"
-```
-
----
-
-# 5. Métriques moyennes
-
-## 5.1 Bias
-
-Dossier :
-
-```text
-temp/postproc/mean/bias/
-```
-
-Commande :
+Depuis la racine du projet :
 
 ```bash
-python -m temp.postproc.mean.bias.bias <config_metric.yaml>
-python -m temp.postproc.mean.bias.plot <config_metric.yaml>
+bash temp/postproc/run_postproc.sh
 ```
 
-Le biais est défini par :
-
-```text
-Bias = prediction - reference
-```
-
-Interprétation :
-
-```text
-Bias > 0 : le modèle surestime la température
-Bias < 0 : le modèle sous-estime la température
-```
-
-Deux stratégies sont disponibles :
-
-```yaml
-strategy: "daily_first"
-```
-
-ou :
-
-```yaml
-strategy: "mean_first"
-```
-
-### daily_first
-
-```text
-Bias(t, lat, lon) = prediction(t, lat, lon) - reference(t, lat, lon)
-```
-
-Puis on moyenne dans le temps.
-
-### mean_first
-
-```text
-Bias = mean(prediction) - mean(reference)
-```
-
----
-
-## 5.2 RMSE
-
-Dossier :
-
-```text
-temp/postproc/mean/rmse/
-```
-
-Commande :
+Equivalent explicite :
 
 ```bash
-python -m temp.postproc.mean.rmse.rmse <config_metric.yaml>
-python -m temp.postproc.mean.rmse.plot <config_metric.yaml>
+bash temp/postproc/run_postproc.sh config
 ```
 
-La RMSE est définie par :
-
-```text
-RMSE = sqrt(mean((prediction - reference)^2))
-```
-
-Une valeur faible indique que les prédictions sont proches de la référence.
-
----
-
-## 5.3 Corrélation
-
-Dossier :
-
-```text
-temp/postproc/mean/correlation/
-```
-
-Commande :
+Avec un groupe seulement :
 
 ```bash
-python -m temp.postproc.mean.correlation.corr <config_metric.yaml>
-python -m temp.postproc.mean.correlation.plot <config_metric.yaml>
+bash temp/postproc/run_postproc.sh config mean
+bash temp/postproc/run_postproc.sh config extreme
+bash temp/postproc/run_postproc.sh config temporal
 ```
 
-Deux corrélations sont calculées :
+Groupes disponibles :
 
 ```text
-CORR_D : corrélation journalière désaisonnalisée
-CORR_M : corrélation mensuelle
+all
+mean
+extreme
+temporal
 ```
 
-### CORR_D
+## Metriques mean
 
-La série journalière est désaisonnalisée, puis la corrélation de Pearson est calculée entre les anomalies prédites et les anomalies de référence.
-
-### CORR_M
-
-Les données sont d’abord moyennées par mois, puis la corrélation est calculée entre les séries mensuelles.
-
----
-
-# 6. Métriques extrêmes
-
-## 6.1 B02
-
-Dossier :
-
-```text
-temp/postproc/extreme/b02/
-```
-
-Commande :
+Bias :
 
 ```bash
-python -m temp.postproc.extreme.b02.b02 <config_metric.yaml>
-python -m temp.postproc.extreme.b02.plot <config_metric.yaml>
+python -m temp.postproc.mean.bias.bias temp/postproc/mean/bias/config.yaml
+python -m temp.postproc.mean.bias.plot temp/postproc/mean/bias/config.yaml
 ```
 
-B02 mesure le biais sur les températures froides extrêmes :
-
-```text
-B02 = Q0.02(prediction) - Q0.02(reference)
-```
-
-où `Q0.02` est le quantile 2 %.
-
----
-
-## 6.2 B98
-
-Dossier :
-
-```text
-temp/postproc/extreme/b98/
-```
-
-Commande :
+RMSE :
 
 ```bash
-python -m temp.postproc.extreme.b98.b98 <config_metric.yaml>
-python -m temp.postproc.extreme.b98.plot <config_metric.yaml>
+python -m temp.postproc.mean.rmse.rmse temp/postproc/mean/rmse/config.yaml
+python -m temp.postproc.mean.rmse.plot temp/postproc/mean/rmse/config.yaml
 ```
 
-B98 mesure le biais sur les températures chaudes extrêmes :
-
-```text
-B98 = Q0.98(prediction) - Q0.98(reference)
-```
-
-où `Q0.98` est le quantile 98 %.
-
----
-
-## 6.3 CAMS
-
-Dossier :
-
-```text
-temp/postproc/extreme/cams/
-```
-
-Commande :
+Correlation :
 
 ```bash
-python -m temp.postproc.extreme.cams.cams <config_metric.yaml>
-python -m temp.postproc.extreme.cams.plot <config_metric.yaml>
+python -m temp.postproc.mean.correlation.corr temp/postproc/mean/correlation/config.yaml
+python -m temp.postproc.mean.correlation.plot temp/postproc/mean/correlation/config.yaml
 ```
 
-CAMS signifie :
+## Metriques extreme
 
-```text
-Cold Annual Max Spell
-```
-
-Il mesure la durée maximale annuelle des épisodes froids.
-
-Dans ce code, un jour froid est défini par :
-
-```text
-temperature < Q0.10(temperature)
-```
-
-Puis le script calcule la plus longue séquence annuelle de jours froids consécutifs.
-
-La métrique sauvegardée est :
-
-```text
-bCAMS = CAMS_prediction - CAMS_reference
-```
-
----
-
-## 6.4 WAMS
-
-Dossier :
-
-```text
-temp/postproc/extreme/wams/
-```
-
-Commande :
+B02 :
 
 ```bash
-python -m temp.postproc.extreme.wams.wams <config_metric.yaml>
-python -m temp.postproc.extreme.wams.plot <config_metric.yaml>
+python -m temp.postproc.extreme.b02.b02 temp/postproc/extreme/b02/config.yaml
+python -m temp.postproc.extreme.b02.plot temp/postproc/extreme/b02/config.yaml
 ```
 
-WAMS signifie :
-
-```text
-Warm Annual Max Spell
-```
-
-Il mesure la durée maximale annuelle des épisodes chauds.
-
-Dans ce code, un jour chaud est défini par :
-
-```text
-temperature > Q0.90(temperature)
-```
-
-Puis le script calcule la plus longue séquence annuelle de jours chauds consécutifs.
-
-La métrique sauvegardée est :
-
-```text
-bWAMS = WAMS_prediction - WAMS_reference
-```
-
----
-
-# 7. Métriques temporelles
-
-## 7.1 AC1
-
-Dossier :
-
-```text
-temp/postproc/temporal/ac1/
-```
-
-Commande :
+B98 :
 
 ```bash
-python -m temp.postproc.temporal.ac1.ac1 <config_metric.yaml>
-python -m temp.postproc.temporal.ac1.plot <config_metric.yaml>
+python -m temp.postproc.extreme.b98.b98 temp/postproc/extreme/b98/config.yaml
+python -m temp.postproc.extreme.b98.plot temp/postproc/extreme/b98/config.yaml
 ```
 
-AC1 est l’autocorrélation au lag 1 :
-
-```text
-AC1 = corr(T(t), T(t+1))
-```
-
-Le code calcule :
-
-```text
-AC1_prediction
-AC1_reference
-bAC1 = AC1_prediction - AC1_reference
-```
-
-AC1 permet d’évaluer la persistance temporelle simulée par le modèle.
-
----
-
-## 7.2 RSTD
-
-Dossier :
-
-```text
-temp/postproc/temporal/rstd/
-```
-
-Commande :
+CAMS :
 
 ```bash
-python -m temp.postproc.temporal.rstd.rstd <config_metric.yaml>
-python -m temp.postproc.temporal.rstd.plot <config_metric.yaml>
+python -m temp.postproc.extreme.cams.cams temp/postproc/extreme/cams/config.yaml
+python -m temp.postproc.extreme.cams.plot temp/postproc/extreme/cams/config.yaml
 ```
 
-RSTD mesure le rapport des écarts-types des anomalies journalières désaisonnalisées :
-
-```text
-RSTD = std(prediction anomalies) / std(reference anomalies)
-```
-
-Interprétation :
-
-```text
-RSTD ≈ 1  : variabilité bien reproduite
-RSTD < 1  : variabilité sous-estimée
-RSTD > 1  : variabilité surestimée
-```
-
----
-
-# 8. Configs par approche
-
-Pour chaque approche, on crée un fichier YAML dans chaque dossier de métrique.
-
-## 8.1 LMDZ250 → LMDZ35
-
-```text
-temp/postproc/mean/bias/lmdz250_to_lmdz35.yaml
-temp/postproc/mean/rmse/lmdz250_to_lmdz35.yaml
-temp/postproc/mean/correlation/lmdz250_to_lmdz35.yaml
-
-temp/postproc/extreme/b02/lmdz250_to_lmdz35.yaml
-temp/postproc/extreme/b98/lmdz250_to_lmdz35.yaml
-temp/postproc/extreme/cams/lmdz250_to_lmdz35.yaml
-temp/postproc/extreme/wams/lmdz250_to_lmdz35.yaml
-
-temp/postproc/temporal/ac1/lmdz250_to_lmdz35.yaml
-temp/postproc/temporal/rstd/lmdz250_to_lmdz35.yaml
-```
-
-## 8.2 LMDZ35 2° → LMDZ35
-
-```text
-temp/postproc/mean/bias/lmdz35_to_lmdz35.yaml
-temp/postproc/mean/rmse/lmdz35_to_lmdz35.yaml
-temp/postproc/mean/correlation/lmdz35_to_lmdz35.yaml
-
-temp/postproc/extreme/b02/lmdz35_to_lmdz35.yaml
-temp/postproc/extreme/b98/lmdz35_to_lmdz35.yaml
-temp/postproc/extreme/cams/lmdz35_to_lmdz35.yaml
-temp/postproc/extreme/wams/lmdz35_to_lmdz35.yaml
-
-temp/postproc/temporal/ac1/lmdz35_to_lmdz35.yaml
-temp/postproc/temporal/rstd/lmdz35_to_lmdz35.yaml
-```
-
----
-
-# 9. Exemple de config pour LMDZ250 → LMDZ35
-
-Exemple pour le biais :
-
-```yaml
-project:
-  main_config_path: "./temp/main/configs/unet1/lmdz250_to_lmdz35.yaml"
-
-metric:
-  name: "bias"
-  strategy: "daily_first"
-  return_by_year: false
-  min_valid: 10
-  seasons: ["Annual", "DJF", "MAM", "JJA", "SON"]
-
-data:
-  prediction_path: null
-  prediction_var: "air_temperature"
-  prediction_units: null
-
-  reference_path: null
-  reference_var: "t2m"
-  reference_units: null
-
-time:
-  use_test_period_from_main_config: true
-  start_date: null
-  end_date: null
-
-output:
-  save_netcdf: true
-  save_summary_json: true
-  save_summary_csv: true
-```
-
-Pour les autres métriques, on garde la même structure et on change seulement la section `metric`.
-
----
-
-# 10. Lancement manuel des métriques
-
-## Bias
+WAMS :
 
 ```bash
-python -m temp.postproc.mean.bias.bias temp/postproc/mean/bias/lmdz250_to_lmdz35.yaml
-python -m temp.postproc.mean.bias.plot temp/postproc/mean/bias/lmdz250_to_lmdz35.yaml
+python -m temp.postproc.extreme.wams.wams temp/postproc/extreme/wams/config.yaml
+python -m temp.postproc.extreme.wams.plot temp/postproc/extreme/wams/config.yaml
 ```
 
-## RMSE
+## Metriques temporal
+
+AC1 :
 
 ```bash
-python -m temp.postproc.mean.rmse.rmse temp/postproc/mean/rmse/lmdz250_to_lmdz35.yaml
-python -m temp.postproc.mean.rmse.plot temp/postproc/mean/rmse/lmdz250_to_lmdz35.yaml
+python -m temp.postproc.temporal.ac1.ac1 temp/postproc/temporal/ac1/config.yaml
+python -m temp.postproc.temporal.ac1.plot temp/postproc/temporal/ac1/config.yaml
 ```
 
-## Correlation
+RSTD :
 
 ```bash
-python -m temp.postproc.mean.correlation.corr temp/postproc/mean/correlation/lmdz250_to_lmdz35.yaml
-python -m temp.postproc.mean.correlation.plot temp/postproc/mean/correlation/lmdz250_to_lmdz35.yaml
+python -m temp.postproc.temporal.rstd.rstd temp/postproc/temporal/rstd/config.yaml
+python -m temp.postproc.temporal.rstd.plot temp/postproc/temporal/rstd/config.yaml
 ```
 
-## B02
+## Sorties
 
-```bash
-python -m temp.postproc.extreme.b02.b02 temp/postproc/extreme/b02/lmdz250_to_lmdz35.yaml
-python -m temp.postproc.extreme.b02.plot temp/postproc/extreme/b02/lmdz250_to_lmdz35.yaml
-```
+Chaque module sauvegarde ses resultats dans le dossier de resultats configure par le YAML principal.
 
-## B98
-
-```bash
-python -m temp.postproc.extreme.b98.b98 temp/postproc/extreme/b98/lmdz250_to_lmdz35.yaml
-python -m temp.postproc.extreme.b98.plot temp/postproc/extreme/b98/lmdz250_to_lmdz35.yaml
-```
-
-## CAMS
-
-```bash
-python -m temp.postproc.extreme.cams.cams temp/postproc/extreme/cams/lmdz250_to_lmdz35.yaml
-python -m temp.postproc.extreme.cams.plot temp/postproc/extreme/cams/lmdz250_to_lmdz35.yaml
-```
-
-## WAMS
-
-```bash
-python -m temp.postproc.extreme.wams.wams temp/postproc/extreme/wams/lmdz250_to_lmdz35.yaml
-python -m temp.postproc.extreme.wams.plot temp/postproc/extreme/wams/lmdz250_to_lmdz35.yaml
-```
-
-## AC1
-
-```bash
-python -m temp.postproc.temporal.ac1.ac1 temp/postproc/temporal/ac1/lmdz250_to_lmdz35.yaml
-python -m temp.postproc.temporal.ac1.plot temp/postproc/temporal/ac1/lmdz250_to_lmdz35.yaml
-```
-
-## RSTD
-
-```bash
-python -m temp.postproc.temporal.rstd.rstd temp/postproc/temporal/rstd/lmdz250_to_lmdz35.yaml
-python -m temp.postproc.temporal.rstd.plot temp/postproc/temporal/rstd/lmdz250_to_lmdz35.yaml
-```
-
----
-
-# 11. Lancement automatique avec `run_postproc.sh`
-
-Un script général peut être utilisé :
+Les sorties typiques sont :
 
 ```text
-temp/postproc/run_postproc.sh
+summary JSON/CSV
+NetCDF de metrique
+figures PNG
 ```
 
-Lancer toutes les métriques :
+## Notes
 
-```bash
-bash temp/postproc/run_postproc.sh lmdz250_to_lmdz35
-```
-
-```bash
-bash temp/postproc/run_postproc.sh lmdz35_to_lmdz35
-```
-
-Lancer seulement une famille de métriques :
-
-```bash
-bash temp/postproc/run_postproc.sh lmdz250_to_lmdz35 mean
-```
-
-```bash
-bash temp/postproc/run_postproc.sh lmdz250_to_lmdz35 extreme
-```
-
-```bash
-bash temp/postproc/run_postproc.sh lmdz250_to_lmdz35 temporal
-```
-
----
-
-# 12. Sorties générées
-
-Les sorties sont sauvegardées dans le dossier de l’expérience :
-
-```text
-<results_dir>/<experiment>/metrics/
-```
-
-Exemple :
-
-```text
-temp/results_test_app1/unet1_lmdz250_to_lmdz35/metrics/
-```
-
-Chaque métrique crée deux dossiers :
-
-```text
-data/
-plots/
-```
-
-Exemple pour le biais :
-
-```text
-metrics/bias/
-├── data/
-│   ├── bias_annual_daily_first_mean_period.nc
-│   ├── bias_djf_daily_first_mean_period.nc
-│   ├── bias_summary_daily_first.csv
-│   └── summary_annual_daily_first_mean_period.json
-│
-└── plots/
-    ├── annual_bias_map_daily_first.png
-    ├── annual_bias_boxplot_daily_first.png
-    └── seasonal_bias_panel_daily_first.png
-```
-
----
-
-# 13. Notes importantes
-
-## 13.1 Période temporelle
-
-Par défaut :
-
-```yaml
-time:
-  use_test_period_from_main_config: true
-```
-
-Donc le postprocessing utilise la période de test du fichier principal :
-
-```yaml
-dates:
-  test:
-    start: ...
-    end: ...
-```
-
-Pour imposer une autre période :
-
-```yaml
-time:
-  use_test_period_from_main_config: false
-  start_date: "2006-01-01"
-  end_date: "2014-12-31"
-```
-
----
-
-## 13.2 Unités
-
-Les scripts convertissent automatiquement les températures en Celsius si les unités sont détectées comme Kelvin.
-
-```text
-K → °C
-```
-
-Si les unités ne sont pas détectées correctement, elles peuvent être forcées dans le YAML :
-
-```yaml
-prediction_units: "K"
-reference_units: "K"
-```
-
-ou :
-
-```yaml
-prediction_units: "C"
-reference_units: "C"
-```
-
----
-
-## 13.3 Mini-tests
-
-Pour des tests très courts, il faut diminuer les seuils.
-
-Pour Bias, RMSE, Corrélation, B02, B98, AC1 :
-
-```yaml
-min_valid: 1
-```
-
-Pour CAMS/WAMS :
-
-```yaml
-min_spell_length: 1
-min_valid_days: 1
-min_valid_years: 1
-```
-
-Pour RSTD :
-
-```yaml
-window: 3
-min_valid: 1
-```
-
-Pour une vraie évaluation, il faut revenir à des valeurs plus robustes :
-
-```yaml
-min_valid: 10
-window: 31
-min_spell_length: 2
-min_valid_days: 10
-```
-
----
-
-# 14. Interprétation rapide des métriques
-
-| Métrique | Interprétation |
-|---|---|
-| Bias | Erreur moyenne signée : `prediction - reference` |
-| RMSE | Amplitude moyenne des erreurs |
-| CORR_D | Corrélation journalière désaisonnalisée |
-| CORR_M | Corrélation mensuelle |
-| B02 | Biais sur les froids extrêmes |
-| B98 | Biais sur les chauds extrêmes |
-| CAMS | Durée maximale annuelle des épisodes froids |
-| WAMS | Durée maximale annuelle des épisodes chauds |
-| AC1 | Persistance temporelle journalière |
-| RSTD | Rapport de variabilité temporelle |
-
----
-
-# 15. Résumé pour les nouvelles approches
-
-Pour :
-
-```text
-LMDZ250 → LMDZ35
-```
-
-les métriques évaluent :
-
-```text
-UNet1(LMDZ250) vs LMDZ35
-```
-
-Pour :
-
-```text
-LMDZ35 2° → LMDZ35
-```
-
-les métriques évaluent :
-
-```text
-UNet1(LMDZ35 dégradé à 2°) vs LMDZ35
-```
-
-Dans les deux cas, la référence n’est pas MSWT mais bien :
-
-```text
-LMDZ35
-```
-
-Donc dans les fichiers YAML, il faut utiliser :
-
-```yaml
-reference_var: "t2m"
-```
+- `run_postproc.sh` utilise `config.yaml` par defaut.
+- Si une autre config est passee par erreur au script, elle est ignoree et `config.yaml` est utilisee.
+- Les chemins `main_config_path` doivent pointer vers `temp/main/configs/unet/config_arch1.yaml` pour l'experience courante.
