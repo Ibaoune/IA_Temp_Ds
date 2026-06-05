@@ -264,20 +264,21 @@ def monthly_temp_comparaison_plot(
     dataset1 = ds_masked_model.resample(time="1ME").mean()
     dataset2 = ds_masked_y.resample(time="1ME").mean()
 
+    dataset1_grouped = dataset1.groupby("time.month").mean(dim="time")
+    dataset2_grouped = dataset2.groupby("time.month").mean(dim="time")
+
     temp_model = (
-        dataset1.groupby("time.month")
-        .mean(dim="time")
+        dataset1_grouped
         .mean(dim=["lon", "lat"])[model_var]
         .values
     )
     temp_y = (
-        dataset2.groupby("time.month")
-        .mean(dim="time")
+        dataset2_grouped
         .mean(dim=["lon", "lat"])[y_var]
         .values
     )
 
-    months = np.arange(1, 13)
+    months = dataset1_grouped.month.values
     bias_model = (temp_y - temp_model).mean()
     rmse_model = np.sqrt(((temp_y - temp_model) ** 2).mean())
 
@@ -300,10 +301,11 @@ def monthly_temp_comparaison_plot(
 
     plt.xlabel("Month")
     plt.ylabel("Temperature (°C)")
+    
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     plt.xticks(
         months,
-        ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        [month_names[int(m)-1] for m in months]
     )
     plt.legend()
     plt.grid(True)

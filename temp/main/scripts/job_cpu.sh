@@ -13,10 +13,11 @@
 ########################################
 train="yes"
 validation="yes"
-MAIN_CONFIG="${MAIN_CONFIG:-temp/main/configs/unet/test_arch1.yaml}"
+MAIN_CONFIG="${MAIN_CONFIG:-temp/main/configs/unet/test_arch.yaml}"
 ########################################
 
 # Activate Conda environment
+source /srv/software/easybuild/software/Anaconda3/2020.11/etc/profile.d/conda.sh
 conda activate clean_env_Pytorch
 
 # Ensure Python logs are flushed immediately
