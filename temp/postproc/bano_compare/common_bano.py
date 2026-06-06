@@ -8,6 +8,7 @@ import xarray as xr
 import yaml
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import geopandas as gpd
 
 from ...main.src.core.config import load_config
@@ -127,9 +128,14 @@ def get_shape_bounds(shapefile_path: str | Path):
     return xmin, ymin, xmax, ymax
 
 
-def draw_project_boundaries(ax, shapefile_path: str | Path) -> None:
+def draw_project_boundaries(
+    ax,
+    shapefile_path: str | Path,
+    color: str = "0.5",
+    linewidth: float = 0.5,
+) -> None:
     shp = load_project_shape(shapefile_path)
-    shp.boundary.plot(ax=ax, color="0.5", linewidth=0.8, zorder=5)
+    shp.boundary.plot(ax=ax, color=color, linewidth=linewidth, zorder=5)
 
 
 def get_bano_display_domain(bano_cfg: dict) -> str:
@@ -140,19 +146,33 @@ def get_bano_display_domain(bano_cfg: dict) -> str:
     )
 
 
-def _colorbar_ticks(levels: np.ndarray, max_ticks: int = 7) -> np.ndarray:
+def _colorbar_ticks(levels: np.ndarray, max_ticks: int = 5) -> np.ndarray:
     levels = np.asarray(levels, dtype=float)
-    if levels.size <= max_ticks:
+    levels = levels[np.isfinite(levels)]
+    if levels.size == 0:
         return levels
 
-    stride = int(np.ceil((levels.size - 1) / (max_ticks - 1)))
-    ticks = list(levels[::stride])
-    if not np.isclose(ticks[-1], levels[-1]):
-        ticks.append(levels[-1])
+    vmin = float(levels[0])
+    vmax = float(levels[-1])
+    if np.isclose(vmin, vmax):
+        return np.asarray([vmin], dtype=float)
 
-    if levels[0] < 0 < levels[-1] and not any(np.isclose(t, 0.0) for t in ticks):
-        ticks.append(0.0)
-        ticks = sorted(ticks)
+    raw_step = (vmax - vmin) / max(1, max_ticks - 1)
+    magnitude = 10.0 ** np.floor(np.log10(raw_step))
+    steps = np.asarray([1, 2, 2.5, 5, 10], dtype=float) * magnitude
+    diffs = np.abs(steps - raw_step)
+    step = steps[np.where(np.isclose(diffs, diffs.min()))[0][-1]]
+
+    eps = (vmax - vmin) * 1e-9
+    start = np.ceil((vmin - eps) / step) * step
+    stop = np.floor((vmax + eps) / step) * step
+    ticks = np.arange(start, stop + 0.5 * step, step)
+
+    if ticks.size < 3:
+        ticks = np.linspace(vmin, vmax, max_ticks)
+
+    decimals = max(0, int(np.ceil(-np.log10(step))) + 1) if step < 1 else 6
+    ticks = np.round(ticks, decimals)
 
     return np.asarray(ticks, dtype=float)
 
@@ -162,6 +182,7 @@ def build_project_cmap_norm(
     vmax: float,
     color_kind: str = "temperature",
     n_bins: int = 9,
+    cmap_name: str | None = None,
 ) -> tuple[np.ndarray, object, BoundaryNorm]:
     if vmax <= vmin:
         vmax = vmin + 1.0
@@ -176,13 +197,13 @@ def build_project_cmap_norm(
         if n_bins % 2:
             n_bins += 1
         levels = np.linspace(-bound, bound, n_bins + 1)
-        cmap = get_bias_cmap(len(levels) - 1)
+        cmap = plt.get_cmap(cmap_name, len(levels) - 1) if cmap_name else get_bias_cmap(len(levels) - 1)
     elif color_kind == "correlation":
         levels = np.linspace(float(vmin), float(vmax), n_bins + 1)
-        cmap = get_correlation_cmap(len(levels) - 1)
+        cmap = plt.get_cmap(cmap_name, len(levels) - 1) if cmap_name else get_correlation_cmap(len(levels) - 1)
     else:
         levels = np.linspace(float(vmin), float(vmax), n_bins + 1)
-        cmap = get_temperature_cmap(len(levels) - 1)
+        cmap = plt.get_cmap(cmap_name, len(levels) - 1) if cmap_name else get_temperature_cmap(len(levels) - 1)
 
     norm = BoundaryNorm(levels, cmap.N, clip=True)
     return levels, cmap, norm
@@ -194,7 +215,7 @@ def add_project_colorbar(
     ax,
     unit: str | None = None,
     label: str | None = None,
-    max_ticks: int = 7,
+    max_ticks: int = 5,
     fraction: float = 0.046,
     pad: float = 0.02,
     cax=None,
@@ -206,18 +227,20 @@ def add_project_colorbar(
         boundaries=levels,
         ticks=ticks,
         spacing="proportional",
+        orientation="vertical",
     )
     if cax is None:
-        colorbar_kwargs.update(ax=ax, fraction=fraction, pad=pad)
-    else:
-        colorbar_kwargs.update(cax=cax)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.08)
+
+    colorbar_kwargs.update(cax=cax)
 
     cbar = fig.colorbar(im, **colorbar_kwargs)
 
     if label:
         cbar.set_label(label, fontsize=9, fontweight="semibold")
-    elif unit:
-        cbar.ax.set_title(unit, fontsize=10, fontweight="semibold", pad=5)
+    if unit:
+        cbar.ax.set_title(unit, fontsize=10, fontweight="semibold", pad=4)
 
     cbar.ax.tick_params(labelsize=8, width=0.7, length=3)
     cbar.outline.set_linewidth(0.7)
@@ -227,29 +250,48 @@ def add_project_colorbar(
     return cbar
 
 
-def add_mean_text(ax, arr_stats, unit: str | None = None, fontsize: int = 13):
-    mean_val = spatial_mean(arr_stats)
-    if np.isfinite(mean_val):
-        suffix = f" {unit}" if unit else ""
-        ax.text(
-            0.03,
-            0.95,
-            f"{mean_val:.2f}{suffix}",
-            transform=ax.transAxes,
-            ha="left",
-            va="top",
-            fontsize=fontsize,
-            fontweight="bold",
-            color="0.15",
-            bbox=dict(
-                facecolor="white",
-                edgecolor="0.82",
-                linewidth=0.45,
-                alpha=0.82,
-                boxstyle="round,pad=0.22",
-            ),
-            zorder=10,
-        )
+def add_bano_colorbar(fig, im, ax, vmin, vmax, unit=None, color_kind="temperature"):
+    """
+    Compact vertical colorbar exactly matching Baño-Medina et al. style:
+    - thin bar (5% width), tight padding
+    - few rounded integer ticks
+    - small °C title above bar
+    """
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="4%", pad=0.05)
+    cbar = fig.colorbar(im, cax=cax, orientation="vertical")
+
+    # Generate 5-7 clean rounded ticks
+    raw_ticks = np.linspace(vmin, vmax, 7)
+    span = vmax - vmin
+    if span >= 20:
+        # Round to nearest 5
+        ticks = np.unique(np.round(raw_ticks / 5) * 5)
+    elif span >= 5:
+        # Round to nearest integer
+        ticks = np.unique(np.round(raw_ticks).astype(int))
+    else:
+        # Diff maps: fixed half-integer steps
+        ticks = np.arange(vmin, vmax + 0.01, 0.5)
+
+    # Clamp ticks to [vmin, vmax]
+    ticks = ticks[(ticks >= vmin) & (ticks <= vmax)]
+    cbar.set_ticks(ticks)
+
+    # Format: integers if possible, else 1 decimal
+    if np.all(ticks == ticks.astype(int)):
+        cbar.set_ticklabels([str(int(t)) for t in ticks])
+    else:
+        cbar.set_ticklabels([f"{t:.1f}" for t in ticks])
+
+    cbar.ax.tick_params(labelsize=8)
+
+    # Unit label above bar
+    if unit:
+        cbar.ax.set_title(unit, fontsize=9, fontweight="semibold", pad=3)
+
+    return cbar
+
 
 def plot_map_bano(
     ax,
@@ -258,9 +300,10 @@ def plot_map_bano(
     lats,
     shapefile_path: str | Path,
     title: str,
-    vmin: float,
-    vmax: float,
-    cmap: str,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    cmap=None,
+    norm=None,
     stats_arr=None,
     unit: str | None = None,
     color_kind: str = "temperature",
@@ -269,6 +312,9 @@ def plot_map_bano(
     pad_frac: float = 0.04,
     display_domain: str = "morocco_shape",
     extent: tuple[float, float, float, float] | None = None,
+    show_stat: bool = True,
+    boundary_color: str = "0.5",
+    boundary_linewidth: float = 0.5,
 ):
     """
     Display either Morocco only or the already-computed land field, while computing
@@ -285,12 +331,20 @@ def plot_map_bano(
         shapefile_path=shapefile_path,
         display_domain=display_domain,
     )
-    levels, project_cmap, norm = build_project_cmap_norm(
-        vmin=vmin,
-        vmax=vmax,
-        color_kind=color_kind,
-        n_bins=n_color_bins,
-    )
+    if norm is None:
+        if vmin is None or vmax is None:
+            raise ValueError("vmin and vmax must be provided when norm is not set.")
+        levels, project_cmap, project_norm = build_project_cmap_norm(
+            vmin=vmin,
+            vmax=vmax,
+            color_kind=color_kind,
+            n_bins=n_color_bins,
+            cmap_name=cmap,
+        )
+    else:
+        levels = getattr(norm, "boundaries", None)
+        project_cmap = plt.get_cmap(cmap) if isinstance(cmap, str) else cmap
+        project_norm = norm
 
     im = ax.pcolormesh(
         lons,
@@ -298,13 +352,18 @@ def plot_map_bano(
         arr_display,
         shading="auto",
         cmap=project_cmap,
-        norm=norm,
+        norm=project_norm,
         zorder=1,
     )
     im.bano_levels = levels
     im.bano_unit = unit
 
-    draw_project_boundaries(ax, shapefile_path)
+    draw_project_boundaries(
+        ax,
+        shapefile_path,
+        color=boundary_color,
+        linewidth=boundary_linewidth,
+    )
 
     if extent is not None:
         lon_min, lon_max, lat_min, lat_max = extent
@@ -332,7 +391,19 @@ def plot_map_bano(
     ax.set_xlabel("")
     ax.set_ylabel("")
 
-    add_mean_text(ax, arr_stats, unit=unit, fontsize=12)
+    stat_val = spatial_mean(arr_stats)
+    if show_stat and np.isfinite(stat_val):
+        ax.text(
+            0.03,
+            0.95,
+            f"{stat_val:.2f}",
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=9,
+            fontweight="bold",
+            color="black",
+        )
 
     return im
 

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from .common_bano import (
     DEFAULT_CONFIG,
     DEG_C,
-    add_project_colorbar,
+    add_bano_colorbar,
     get_main_cfg_and_bano_cfg,
     ensure_bano_output_dir,
     load_masked_observation_train_test,
@@ -20,9 +20,9 @@ from .common_bano import (
 
 
 # Fixed limits, close to Baño figure
-CLIM_VMIN, CLIM_VMAX = -2.0, 14.0
-P02_VMIN, P02_VMAX = -20.0, 10.0
-P98_VMIN, P98_VMAX = 10.0, 30.0
+CLIM_VMIN, CLIM_VMAX = 10.0, 30.0
+P02_VMIN, P02_VMAX = -5.0, 20.0
+P98_VMIN, P98_VMAX = 20.0, 45.0
 DIFF_VMIN, DIFF_VMAX = -2.0, 2.0
 
 CMAP_TEMP = "OrRd"
@@ -225,22 +225,13 @@ def main():
     # ---------------------------
     # Colorbars
     # ---------------------------
-    cbar00 = add_project_colorbar(fig, im00, axes[0, 0], unit=DEG_C)
-    cbar00.ax.set_title("°C", fontsize=11, pad=6)
-    cbar01 = add_project_colorbar(fig, im01, axes[0, 1], unit=DEG_C)
-    cbar01.ax.set_title("°C", fontsize=11, pad=6)
-    cbar02 = add_project_colorbar(fig, im02, axes[0, 2], unit=DEG_C)
-    cbar02.ax.set_title("°C", fontsize=11, pad=6)
+    cbar00 = add_bano_colorbar(fig, im00, axes[0, 0], CLIM_VMIN, CLIM_VMAX, unit=DEG_C, color_kind="temperature")
+    cbar01 = add_bano_colorbar(fig, im01, axes[0, 1], P02_VMIN, P02_VMAX, unit=DEG_C, color_kind="temperature")
+    cbar02 = add_bano_colorbar(fig, im02, axes[0, 2], P98_VMIN, P98_VMAX, unit=DEG_C, color_kind="temperature")
 
-    cbar10 = add_project_colorbar(fig, im10, axes[1, 0], unit=DEG_C)
-    cbar10.ax.set_title("°C", fontsize=11, pad=6)
-    cbar11 = add_project_colorbar(fig, im11, axes[1, 1], unit=DEG_C)
-    cbar11.ax.set_title("°C", fontsize=11, pad=6)
-    cbar12 = add_project_colorbar(fig, im12, axes[1, 2], unit=DEG_C)
-    cbar12.ax.set_title("°C", fontsize=11, pad=6)
-
-    for cbar in [cbar00, cbar01, cbar02, cbar10, cbar11, cbar12]:
-        cbar.ax.set_title(DEG_C, fontsize=10, fontweight="semibold", pad=5)
+    cbar10 = add_bano_colorbar(fig, im10, axes[1, 0], DIFF_VMIN, DIFF_VMAX, unit=DEG_C, color_kind="bias")
+    cbar11 = add_bano_colorbar(fig, im11, axes[1, 1], DIFF_VMIN, DIFF_VMAX, unit=DEG_C, color_kind="bias")
+    cbar12 = add_bano_colorbar(fig, im12, axes[1, 2], DIFF_VMIN, DIFF_VMAX, unit=DEG_C, color_kind="bias")
 
     # ---------------------------
     # Left-side labels

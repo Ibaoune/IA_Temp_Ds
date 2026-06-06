@@ -3,14 +3,16 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from ...main.src.core.utils import build_experiment_path
 
 from .common_bano import (
     DEFAULT_CONFIG,
     DEG_C,
-    add_project_colorbar,
     get_main_cfg_and_bano_cfg,
     ensure_bano_output_dir,
     get_lon_lat,
@@ -20,16 +22,86 @@ from .common_bano import (
 )
 
 
+BANO_RDBU_9_R = [
+    "#2166AC",
+    "#4393C3",
+    "#92C5DE",
+    "#D1E5F0",
+    "#F7F7F7",
+    "#FDDBC7",
+    "#F4A582",
+    "#D6604D",
+    "#B2182B",
+]
+
+BANO_ORRD_9 = [
+    "#FFF7EC",
+    "#FEE8C8",
+    "#FDD49E",
+    "#FDBB84",
+    "#FC8D59",
+    "#EF6548",
+    "#D7301F",
+    "#B30000",
+    "#7F0000",
+]
+
+
+def make_bano_colormaps():
+    cmap_corr = LinearSegmentedColormap.from_list(
+        "bano_OrRd",
+        BANO_ORRD_9,
+        N=256,
+    )
+    cmap_bias = LinearSegmentedColormap.from_list(
+        "bano_RdBu_r",
+        BANO_RDBU_9_R,
+        N=256,
+    )
+    return cmap_corr, cmap_bias
+
+
+CMAP_CORR, CMAP_BIAS = make_bano_colormaps()
+
+
+def get_bano_norm_and_ticks(color_kind):
+    if color_kind == "correlation":
+        bounds = np.arange(0.85, 1.0001, 0.005)
+        ticks = np.arange(0.86, 1.0001, 0.02)
+        norm = BoundaryNorm(bounds, CMAP_CORR.N, clip=True)
+        return CMAP_CORR, norm, ticks
+
+    bounds = np.arange(-2.0, 2.0001, 0.1)
+    ticks = np.arange(-2.0, 2.0001, 0.5)
+    norm = BoundaryNorm(bounds, CMAP_BIAS.N, clip=True)
+    return CMAP_BIAS, norm, ticks
+
+
+def add_bano_colorbar(fig, im, ax, color_kind):
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="4%", pad=0.05)
+    cbar = fig.colorbar(im, cax=cax, orientation="vertical")
+
+    _, _, ticks = get_bano_norm_and_ticks(color_kind)
+    cbar.set_ticks(ticks)
+
+    if color_kind == "correlation":
+        cbar.set_ticklabels([f"{t:.2f}" for t in ticks])
+        cbar.ax.set_title("")
+    else:
+        cbar.set_ticklabels([f"{t:.1f}" for t in ticks])
+        cbar.ax.set_title(DEG_C, fontsize=9, fontweight="semibold", pad=3)
+
+    cbar.ax.tick_params(labelsize=8, length=2, width=0.5)
+    return cbar
+
+
 # ==========================================================
 # Baño-style fixed limits
 # ==========================================================
 
 CORR_VMIN, CORR_VMAX = 0.86, 1.00
 BIAS_VMIN, BIAS_VMAX = -2.0, 2.0
-
-CMAP_CORR = "Reds"
-CMAP_BIAS = "RdBu_r"
-
 
 FIG3_SPECS = [
     {
@@ -155,6 +227,8 @@ def main():
         lons, lats = get_lon_lat(da)
         arr = da.values
 
+        _, norm, _ = get_bano_norm_and_ticks(spec["color_kind"])
+
         im = plot_map_bano(
             ax=ax,
             arr=arr,
@@ -163,19 +237,20 @@ def main():
             lats=lats,
             shapefile_path=shapefile_path,
             title=spec["title"],
-            vmin=spec["vmin"],
-            vmax=spec["vmax"],
             cmap=spec["cmap"],
+            norm=norm,
             unit=spec["unit"],
             color_kind=spec["color_kind"],
             display_domain=display_domain,
         )
 
+        ax.set_title(spec["title"], fontsize=11, fontweight="bold", pad=5)
+
         images.append((im, ax, spec))
 
     # Row label: UNet1
     axes[0].text(
-        -0.25,
+        -0.18,
         0.50,
         model_label,
         transform=axes[0].transAxes,
@@ -188,16 +263,7 @@ def main():
 
     # Colorbars: one for each map, Baño-like compact vertical bars
     for im, ax, spec in images:
-        cbar = add_project_colorbar(fig, im, ax, unit=spec["unit"])
-
-        if spec["unit"] is not None:
-            cbar.ax.set_title(
-                spec["unit"],
-                fontsize=10,
-                fontweight="semibold",
-                pad=5,
-            )
-
+        add_bano_colorbar(fig, im, ax, spec["color_kind"])
 
     fig.subplots_adjust(
         left=0.08,

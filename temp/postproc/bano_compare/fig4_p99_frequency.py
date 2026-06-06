@@ -5,10 +5,10 @@ import argparse
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
+from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap
 
 from .common_bano import (
     DEFAULT_CONFIG,
-    add_project_colorbar,
     get_main_cfg_and_bano_cfg,
     ensure_bano_output_dir,
     load_masked_observation_train_test,
@@ -24,7 +24,40 @@ from .common_bano import (
 # ==========================================================
 
 FREQ_VMIN, FREQ_VMAX = 0.0, 3.0
-CMAP_FREQ = "OrRd"
+
+BANO_FREQ_COLORS = [
+    "#67A9CF",
+    "#D1E5F0",
+    "#F7F7F7",
+    "#FEE8C8",
+    "#FDBB84",
+    "#FC8D59",
+    "#EF6548",
+    "#D7301F",
+    "#B30000",
+    "#7F0000",
+]
+
+CMAP_FREQ = LinearSegmentedColormap.from_list(
+    "bano_freq_blue_white_red",
+    BANO_FREQ_COLORS,
+    N=256,
+)
+FREQ_BOUNDS = np.arange(FREQ_VMIN, FREQ_VMAX + 0.0001, 0.1)
+FREQ_NORM = BoundaryNorm(FREQ_BOUNDS, CMAP_FREQ.N, clip=True)
+FREQ_TICKS = np.arange(FREQ_VMIN, FREQ_VMAX + 0.0001, 0.5)
+
+
+def style_bano_freq_axis(ax, title: str) -> None:
+    ax.set_title(title, fontsize=9, fontweight="normal", pad=2)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    ax.grid(False)
+    for spine in ax.spines.values():
+        spine.set_linewidth(0.5)
+        spine.set_edgecolor("0.2")
 
 
 def parse_args():
@@ -152,7 +185,7 @@ def main():
     fig, axes = plt.subplots(
         1,
         2,
-        figsize=(7.2, 3.4),
+        figsize=(6.2, 2.5),
         dpi=dpi,
     )
 
@@ -164,13 +197,16 @@ def main():
         lats=lats,
         shapefile_path=shapefile_path,
         title="Test",
-        vmin=FREQ_VMIN,
-        vmax=FREQ_VMAX,
         cmap=CMAP_FREQ,
+        norm=FREQ_NORM,
         unit="%",
-        color_kind="temperature",
+        color_kind="frequency",
         display_domain=display_domain,
+        show_stat=False,
+        boundary_color="0.45",
+        boundary_linewidth=0.4,
     )
+    style_bano_freq_axis(axes[0], "Test")
 
     im1 = plot_map_bano(
         ax=axes[1],
@@ -180,36 +216,31 @@ def main():
         lats=lats,
         shapefile_path=shapefile_path,
         title=model_label,
-        vmin=FREQ_VMIN,
-        vmax=FREQ_VMAX,
         cmap=CMAP_FREQ,
+        norm=FREQ_NORM,
         unit="%",
-        color_kind="temperature",
+        color_kind="frequency",
         display_domain=display_domain,
+        show_stat=False,
+        boundary_color="0.45",
+        boundary_linewidth=0.4,
     )
+    style_bano_freq_axis(axes[1], model_label)
 
     # Baño-style compact vertical colorbars
-    cbar_ax = fig.add_axes([0.90, 0.20, 0.025, 0.56])
-    cbar = add_project_colorbar(fig, im1, axes, unit="%", cax=cbar_ax)
-    cbar.ax.set_title("%", fontsize=10, fontweight="semibold", pad=5)
-    cbar.ax.tick_params(labelsize=8)
-
-    fig.text(
-        0.02,
-        0.50,
-        "Frequency of exceedance of TRAIN P99",
-        rotation=90,
-        va="center",
-        ha="center",
-        fontsize=13,
-    )
+    cbar_ax = fig.add_axes([0.905, 0.24, 0.018, 0.52])
+    cbar = fig.colorbar(im1, cax=cbar_ax, orientation="vertical")
+    cbar.set_ticks(FREQ_TICKS)
+    cbar.set_ticklabels([f"{t:.1f}" for t in FREQ_TICKS])
+    cbar.ax.set_title("Freq. (%)", fontsize=7, fontweight="normal", pad=3)
+    cbar.ax.tick_params(labelsize=6, length=2, width=0.4)
 
     fig.subplots_adjust(
-        left=0.10,
-        right=0.86,
-        top=0.84,
+        left=0.06,
+        right=0.88,
+        top=0.82,
         bottom=0.12,
-        wspace=0.22,
+        wspace=0.16,
     )
 
     out_png = out_dir / "fig4_p99_frequency.png"

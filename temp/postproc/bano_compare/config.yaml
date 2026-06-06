@@ -1,5 +1,5 @@
 project:
-  main_config_path: "./temp/main/configs/unet/config_arch1.yaml"
+  main_config_path: "./temp/main/configs/unet/test_arch1.yaml"
 
 experiment:
   name: "unet1_temperature"
@@ -25,9 +25,9 @@ data:
 
 time:
   train_start: "1980-01-01"
-  train_end: "2005-12-31"
-  test_start: "2006-01-01"
-  test_end: "2020-12-31"
+  train_end: "1984-12-31"
+  test_start: "1985-01-01"
+  test_end: "1985-12-31"
 
 output:
   folder_name: "bano_compare"
