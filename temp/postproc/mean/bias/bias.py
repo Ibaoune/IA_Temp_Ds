@@ -27,6 +27,8 @@ from ...common import (
     get_spatial_context,
     apply_spatial_context_to_inputs,
     open_temperature_dataarray,
+    restrict_to_evaluation_pixels,
+    restore_points_to_grid,
     save_json,
     save_summary_csv,
     spatial_summary,
@@ -411,20 +413,29 @@ def main():
     print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
     print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
 
+    pred_eval, obs_eval = restrict_to_evaluation_pixels(
+        pred=pred,
+        obs=obs,
+        spatial_mask=spatial_mask,
+        min_valid=min_valid,
+    )
+    print(f"Computation pixels        : {pred_eval.sizes['points']}")
+
     summary_rows = []
 
     for season_name, months in selected_seasons.items():
         print(f"\n--- Computing bias for {season_name} ---")
 
         bias_da = compute_one_tag(
-            pred=pred,
-            obs=obs,
+            pred=pred_eval,
+            obs=obs_eval,
             season_name=season_name,
             months=months,
             strategy=strategy,
             return_by_year=return_by_year,
             min_valid=min_valid,
         )
+        bias_da = restore_points_to_grid(bias_da, spatial_mask)
 
         bias_da.attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
         bias_da.attrs["mask_applied_before_compute"] = "true"

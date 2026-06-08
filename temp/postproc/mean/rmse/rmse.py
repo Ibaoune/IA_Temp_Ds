@@ -19,6 +19,8 @@ from ...common import (
     get_season_years,
     get_spatial_context,
     open_temperature_dataarray,
+    restrict_to_evaluation_pixels,
+    restore_points_to_grid,
     save_json,
     save_summary_csv,
     spatial_summary,
@@ -417,20 +419,29 @@ def main():
     print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
     print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
 
+    pred_eval, obs_eval = restrict_to_evaluation_pixels(
+        pred=pred,
+        obs=obs,
+        spatial_mask=spatial_mask,
+        min_valid=min_valid,
+    )
+    print(f"Computation pixels        : {pred_eval.sizes['points']}")
+
     summary_rows = []
 
     for season_name, months in selected_seasons.items():
         print(f"\n--- Computing RMSE for {season_name} ---")
 
         rmse_da = compute_one_tag(
-            pred=pred,
-            obs=obs,
+            pred=pred_eval,
+            obs=obs_eval,
             season_name=season_name,
             months=months,
             strategy=strategy,
             return_by_year=return_by_year,
             min_valid=min_valid,
         )
+        rmse_da = restore_points_to_grid(rmse_da, spatial_mask)
 
         rmse_da.attrs["spatial_eval_domain"] = spatial_ctx.eval_domain
         rmse_da.attrs["mask_applied_before_compute"] = "true"

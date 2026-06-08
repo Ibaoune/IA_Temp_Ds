@@ -266,6 +266,78 @@ def spatial_summary(da: xr.DataArray) -> dict:
     }
 
 
+def restrict_to_evaluation_pixels(
+    pred: xr.DataArray,
+    obs: xr.DataArray,
+    spatial_mask: xr.DataArray,
+    min_valid: int = 1,
+) -> tuple[xr.DataArray, xr.DataArray]:
+    """
+    Stack lat/lon into points and keep only pixels selected by spatial_mask.
+    Also remove points with fewer than min_valid valid pred/obs pairs.
+    """
+    if min_valid < 1:
+        raise ValueError("min_valid must be >= 1")
+
+    required_dims = {"time", "lat", "lon"}
+    for name, da in [("pred", pred), ("obs", obs)]:
+        missing = required_dims - set(da.dims)
+        if missing:
+            raise ValueError(f"{name} is missing required dimensions: {sorted(missing)}")
+
+    missing_mask_dims = {"lat", "lon"} - set(spatial_mask.dims)
+    if missing_mask_dims:
+        raise ValueError(
+            f"spatial_mask is missing required dimensions: {sorted(missing_mask_dims)}"
+        )
+
+    pred_points = pred.stack(points=("lat", "lon"))
+    obs_points = obs.stack(points=("lat", "lon"))
+    mask_points = spatial_mask.fillna(False).astype(bool).stack(points=("lat", "lon"))
+    mask_points = mask_points.drop_vars("time", errors="ignore")
+
+    pred_points, obs_points, mask_points = xr.align(
+        pred_points,
+        obs_points,
+        mask_points,
+        join="inner",
+    )
+
+    valid_pairs = (np.isfinite(pred_points) & np.isfinite(obs_points)).sum("time")
+    valid_pairs = valid_pairs.drop_vars("time", errors="ignore")
+
+    eval_points = mask_points.fillna(False) & (valid_pairs >= min_valid)
+    eval_points = eval_points.drop_vars("time", errors="ignore")
+
+    pred_eval = pred_points.where(eval_points, drop=True)
+    obs_eval = obs_points.where(eval_points, drop=True)
+
+    if pred_eval.sizes.get("points", 0) == 0:
+        raise ValueError(
+            "No evaluation pixels remain after applying spatial_mask and min_valid."
+        )
+
+    return pred_eval, obs_eval
+
+
+def restore_points_to_grid(
+    da: xr.DataArray,
+    spatial_mask: xr.DataArray,
+) -> xr.DataArray:
+    """
+    Convert a DataArray with dimension points back to lat/lon.
+    Extra dimensions such as year are preserved.
+    """
+    if "points" not in da.dims:
+        return da
+
+    attrs = da.attrs.copy()
+    restored = da.unstack("points").reindex_like(spatial_mask)
+    restored.attrs.update(attrs)
+
+    return restored
+
+
 def ensure_metric_dirs(exp_path: str | Path, metric_name: str) -> tuple[Path, Path]:
     """
     Create:

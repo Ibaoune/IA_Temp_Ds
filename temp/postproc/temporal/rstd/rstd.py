@@ -17,6 +17,8 @@ from ...common import (
     ensure_spatial_metric_dirs,
     get_spatial_context,
     open_temperature_dataarray,
+    restrict_to_evaluation_pixels,
+    restore_points_to_grid,
     save_json,
     save_summary_csv,
     spatial_summary,
@@ -354,12 +356,23 @@ def main():
     print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
     print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
 
-    std_pred, std_obs, rstd = compute_rstd_fields(
+    pred_eval, obs_eval = restrict_to_evaluation_pixels(
         pred=pred,
         obs=obs,
+        spatial_mask=spatial_mask,
+        min_valid=min_valid,
+    )
+    print(f"Computation pixels        : {pred_eval.sizes['points']}")
+
+    std_pred, std_obs, rstd = compute_rstd_fields(
+        pred=pred_eval,
+        obs=obs_eval,
         window=window,
         min_valid=min_valid,
     )
+    std_pred = restore_points_to_grid(std_pred, spatial_mask)
+    std_obs = restore_points_to_grid(std_obs, spatial_mask)
+    rstd = restore_points_to_grid(rstd, spatial_mask)
 
     ds_out = xr.Dataset(
         {

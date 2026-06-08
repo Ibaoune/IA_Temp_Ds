@@ -1,5 +1,5 @@
 project:
-  main_config_path: "./temp/main/configs/unet/config_arch1.yaml"
+  main_config_path: "./temp/main/configs/unet/config_arch.yaml"
 
 metric:
   name: "b98"

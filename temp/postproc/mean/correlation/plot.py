@@ -245,6 +245,9 @@ def plot_one_corr_type(
     show: bool = False,
     robust: bool = False,
 ):
+    if corr_type != "corr_d":
+        raise ValueError(f"Unknown corr_type: {corr_type}")
+
     data_dir, plot_dir = ensure_spatial_metric_dirs(
         exp_path=exp_path,
         metric_name=corr_type,
@@ -259,14 +262,8 @@ def plot_one_corr_type(
 
     exp_label = f"{cfg.src.upper()} → {cfg.target.upper()} | {cfg.model_type.upper()}"
 
-    if corr_type == "corr_d":
-        full_title = "daily deseasonalized correlation"
-        map_title = "Daily deseasonalized correlation (CORR D)"
-    elif corr_type == "corr_m":
-        full_title = "monthly correlation"
-        map_title = "Monthly correlation (CORR M)"
-    else:
-        raise ValueError(f"Unknown corr_type: {corr_type}")
+    full_title = "daily deseasonalized correlation"
+    map_title = "Daily deseasonalized correlation (CORR D)"
 
     annual_arr = None
     annual_lons = None
@@ -474,17 +471,6 @@ def main():
 
     plot_one_corr_type(
         corr_type="corr_d",
-        cfg=cfg,
-        exp_path=exp_path,
-        selected_seasons=selected_seasons,
-        spatial_ctx=spatial_ctx,
-        display_domain=display_domain,
-        show=args.show,
-        robust=args.robust,
-    )
-
-    plot_one_corr_type(
-        corr_type="corr_m",
         cfg=cfg,
         exp_path=exp_path,
         selected_seasons=selected_seasons,

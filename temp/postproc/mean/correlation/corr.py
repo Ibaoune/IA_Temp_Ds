@@ -20,6 +20,8 @@ from ...common import (
     get_months,
     get_spatial_context,
     open_temperature_dataarray,
+    restrict_to_evaluation_pixels,
+    restore_points_to_grid,
     save_json,
     save_summary_csv,
     spatial_summary,
@@ -269,6 +271,7 @@ def pearson_corr_pvalue_sig_maps(
 
     return corr, pval, sig, n_valid
 
+
 def compute_corr_d(
     pred: xr.DataArray,
     obs: xr.DataArray,
@@ -358,22 +361,11 @@ def compute_one_tag(
         alpha=alpha,
     )
 
-    corr_m, corr_m_pval, corr_m_sig, corr_m_n_valid = compute_corr_m(
-        pred_sub,
-        obs_sub,
-        min_valid=min_valid,
-        alpha=alpha,
-    )
-
     for da in [corr_d, corr_d_pval, corr_d_sig, corr_d_n_valid]:
-        da.attrs["season"] = season_name
-
-    for da in [corr_m, corr_m_pval, corr_m_sig, corr_m_n_valid]:
         da.attrs["season"] = season_name
 
     return (
         corr_d, corr_d_pval, corr_d_sig, corr_d_n_valid,
-        corr_m, corr_m_pval, corr_m_sig, corr_m_n_valid,
     )
 
 
@@ -440,12 +432,6 @@ def main():
         metric_name="corr_d",
         eval_domain=spatial_ctx.eval_domain,
     )
-    corr_m_data_dir, corr_m_plots_dir = ensure_spatial_metric_dirs(
-        exp_path=exp_path,
-        metric_name="corr_m",
-        eval_domain=spatial_ctx.eval_domain,
-    )
-
     print("=== Temperature correlation postprocessing ===")
     print(f"Spatial domain   : {spatial_ctx.eval_domain}")
     print(f"Save mask        : {spatial_ctx.save_mask}")
@@ -459,9 +445,7 @@ def main():
     print(f"Min valid       : {min_valid}")
     print(f"Seasons         : {list(selected_seasons.keys())}")
     print(f"corr_d data dir : {corr_d_data_dir}")
-    print(f"corr_m data dir : {corr_m_data_dir}")
     print(f"corr_d plot dir : {corr_d_plots_dir}")
-    print(f"corr_m plot dir : {corr_m_plots_dir}")
 
     pred = open_temperature_dataarray(pred_path, var_name=pred_var)
     obs = open_temperature_dataarray(obs_path, var_name=obs_var)
@@ -487,24 +471,35 @@ def main():
     print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
     print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
 
+    pred_eval, obs_eval = restrict_to_evaluation_pixels(
+        pred=pred,
+        obs=obs,
+        spatial_mask=spatial_mask,
+        min_valid=min_valid,
+    )
+    print(f"Computation pixels        : {pred_eval.sizes['points']}")
+
     summary_rows_corr_d = []
-    summary_rows_corr_m = []
 
     for season_name, months in selected_seasons.items():
         print(f"\n--- Computing correlations for {season_name} ---")
 
         (
             corr_d, corr_d_pval, corr_d_sig, corr_d_n,
-            corr_m, corr_m_pval, corr_m_sig, corr_m_n,
         ) = compute_one_tag(
-            pred=pred,
-            obs=obs,
+            pred=pred_eval,
+            obs=obs_eval,
             season_name=season_name,
             months=months,
             min_valid=min_valid,
             window=window,
             alpha=alpha,
         )
+
+        corr_d = restore_points_to_grid(corr_d, spatial_mask)
+        corr_d_pval = restore_points_to_grid(corr_d_pval, spatial_mask)
+        corr_d_sig = restore_points_to_grid(corr_d_sig, spatial_mask)
+        corr_d_n = restore_points_to_grid(corr_d_n, spatial_mask)
 
         ds_corr_d = xr.Dataset({
             "corr_d": corr_d,
@@ -513,14 +508,7 @@ def main():
             "corr_d_n_valid": corr_d_n,
         })
 
-        ds_corr_m = xr.Dataset({
-            "corr_m": corr_m,
-            "corr_m_pval": corr_m_pval,
-            "corr_m_sig": corr_m_sig,
-            "corr_m_n_valid": corr_m_n,
-        })
-
-        for ds_out, metric_name in [(ds_corr_d, "corr_d"), (ds_corr_m, "corr_m")]:
+        for ds_out, metric_name in [(ds_corr_d, "corr_d")]:
             ds_out.attrs["metric"] = metric_name
             ds_out.attrs["metric_family"] = "correlation"
             ds_out.attrs["variable"] = "temperature"
@@ -543,14 +531,11 @@ def main():
                 ds_out["spatial_mask"] = spatial_mask.astype("int8")
 
         out_nc_corr_d = corr_d_data_dir / f"corr_d_{season_name.lower()}_mean_period.nc"
-        out_nc_corr_m = corr_m_data_dir / f"corr_m_{season_name.lower()}_mean_period.nc"
 
         if save_netcdf:
             ds_corr_d.to_netcdf(out_nc_corr_d)
-            ds_corr_m.to_netcdf(out_nc_corr_m)
 
         corr_d_stats = spatial_summary(corr_d)
-        corr_m_stats = spatial_summary(corr_m)
 
         if save_summary_json:
             save_json(
@@ -566,18 +551,6 @@ def main():
                 corr_d_data_dir / f"summary_corr_d_{season_name.lower()}_mean_period.json",
             )
 
-            save_json(
-                {
-                    "season": season_name,
-                    "metric": "corr_m",
-                    "min_valid": min_valid,
-                    "spatial_eval_domain": spatial_ctx.eval_domain,
-                    **corr_m_stats,
-                    "file": str(out_nc_corr_m) if save_netcdf else "",
-                },
-                corr_m_data_dir / f"summary_corr_m_{season_name.lower()}_mean_period.json",
-            )
-
         summary_rows_corr_d.append(
             {
                 "season": season_name,
@@ -590,30 +563,13 @@ def main():
             }
         )
 
-        summary_rows_corr_m.append(
-            {
-                "season": season_name,
-                "metric": "corr_m",
-                "min_valid": min_valid,
-                "spatial_eval_domain": spatial_ctx.eval_domain,
-                **corr_m_stats,
-                "file": str(out_nc_corr_m) if save_netcdf else "",
-            }
-        )
-
         if save_netcdf:
             print(f"Saved: {out_nc_corr_d}")
-            print(f"Saved: {out_nc_corr_m}")
 
         print(
             f"  CORR D mean={corr_d_stats['mean']:.4f}, "
             f"min={corr_d_stats['min']:.4f}, "
             f"max={corr_d_stats['max']:.4f}"
-        )
-        print(
-            f"  CORR M mean={corr_m_stats['mean']:.4f}, "
-            f"min={corr_m_stats['min']:.4f}, "
-            f"max={corr_m_stats['max']:.4f}"
         )
 
     if save_summary_csv_flag:
@@ -621,12 +577,7 @@ def main():
             summary_rows_corr_d,
             corr_d_data_dir / "corr_d_summary.csv",
         )
-        save_summary_csv(
-            summary_rows_corr_m,
-            corr_m_data_dir / "corr_m_summary.csv",
-        )
         print(f"\nSaved summary CSV: {corr_d_data_dir / 'corr_d_summary.csv'}")
-        print(f"Saved summary CSV: {corr_m_data_dir / 'corr_m_summary.csv'}")
 
     print("\nAll correlation products saved successfully.")
 

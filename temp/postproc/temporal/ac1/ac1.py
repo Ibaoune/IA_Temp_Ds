@@ -16,6 +16,8 @@ from ...common import (
     ensure_spatial_metric_dirs,
     get_spatial_context,
     open_temperature_dataarray,
+    restrict_to_evaluation_pixels,
+    restore_points_to_grid,
     save_json,
     save_summary_csv,
     spatial_summary,
@@ -161,13 +163,22 @@ def compute_lag1_autocorrelation(
     """
     Compute lag-1 autocorrelation (AC1) per grid point.
     """
-    data = da.values  # shape: (time, lat, lon)
+    if "points" in da.dims:
+        data = da.transpose("time", "points").values
+        out_coords = {"points": da["points"]}
+        out_dims = ("points",)
+    else:
+        data = da.transpose("time", "lat", "lon").values
+        out_coords = {"lat": da["lat"], "lon": da["lon"]}
+        out_dims = ("lat", "lon")
 
-    if data.ndim != 3:
-        raise ValueError(f"Expected (time, lat, lon), got shape={data.shape}")
+    if data.ndim not in {2, 3}:
+        raise ValueError(
+            f"Expected (time, points) or (time, lat, lon), got shape={data.shape}"
+        )
 
-    x0 = data[:-1, :, :]
-    x1 = data[1:, :, :]
+    x0 = data[:-1, ...]
+    x1 = data[1:, ...]
 
     valid = np.isfinite(x0) & np.isfinite(x1)
     n_valid = valid.sum(axis=0)
@@ -189,8 +200,8 @@ def compute_lag1_autocorrelation(
 
     return xr.DataArray(
         ac1,
-        coords={"lat": da["lat"], "lon": da["lon"]},
-        dims=("lat", "lon"),
+        coords=out_coords,
+        dims=out_dims,
         name="ac1",
     )
 
@@ -307,11 +318,22 @@ def main():
     print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
     print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
 
-    ac1_pred, ac1_obs, bac1 = compute_ac1_fields(
+    pred_eval, obs_eval = restrict_to_evaluation_pixels(
         pred=pred,
         obs=obs,
+        spatial_mask=spatial_mask,
         min_valid=min_valid,
     )
+    print(f"Computation pixels        : {pred_eval.sizes['points']}")
+
+    ac1_pred, ac1_obs, bac1 = compute_ac1_fields(
+        pred=pred_eval,
+        obs=obs_eval,
+        min_valid=min_valid,
+    )
+    ac1_pred = restore_points_to_grid(ac1_pred, spatial_mask)
+    ac1_obs = restore_points_to_grid(ac1_obs, spatial_mask)
+    bac1 = restore_points_to_grid(bac1, spatial_mask)
 
     ds_out = xr.Dataset(
         {

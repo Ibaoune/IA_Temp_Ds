@@ -1,9 +1,9 @@
 project:
-  main_config_path: "./temp/main/configs/unet/test_arch1.yaml"
+  main_config_path: "./temp/main/configs/unet/config_arch.yaml"
 
 experiment:
-  name: "unet1_temperature"
-  model_label: "UNet1"
+  name: "unet_temperature"
+  model_label: "UNet"
 
 spatial:
   eval_domain: "land"   # "full_domain" | "morocco_shape" | "land"
@@ -25,9 +25,9 @@ data:
 
 time:
   train_start: "1980-01-01"
-  train_end: "1984-12-31"
-  test_start: "1985-01-01"
-  test_end: "1985-12-31"
+  train_end: "2014-12-31"
+  test_start: "2015-01-01"
+  test_end: "2020-12-31"
 
 output:
   folder_name: "bano_compare"

@@ -16,6 +16,8 @@ from ...common import (
     ensure_spatial_metric_dirs,
     get_spatial_context,
     open_temperature_dataarray,
+    restrict_to_evaluation_pixels,
+    restore_points_to_grid,
     save_json,
     save_summary_csv,
     spatial_summary,
@@ -178,13 +180,13 @@ def longest_spell_over_threshold(
     exceed: np.ndarray,
     min_spell_length: int = 2,
 ) -> np.ndarray:
-    if exceed.ndim != 3:
-        raise ValueError(f"'exceed' must have shape (time, lat, lon), got {exceed.shape}")
+    if exceed.ndim not in {2, 3}:
+        raise ValueError(
+            f"'exceed' must have shape (time, points) or (time, lat, lon), got {exceed.shape}"
+        )
 
-    _, n_lat, n_lon = exceed.shape
-
-    run = np.zeros((n_lat, n_lon), dtype=np.int16)
-    max_run = np.zeros((n_lat, n_lon), dtype=np.int16)
+    run = np.zeros(exceed.shape[1:], dtype=np.int16)
+    max_run = np.zeros(exceed.shape[1:], dtype=np.int16)
 
     for t in range(exceed.shape[0]):
         run = (run + 1) * exceed[t]
@@ -203,7 +205,7 @@ def compute_annual_max_spell_lengths(
     years = np.unique(da["time"].dt.year.values)
     annual_max_list = []
 
-    threshold_2d = threshold.values
+    threshold_values = threshold.values
 
     for year in years:
         sub = da.sel(time=str(int(year)))
@@ -212,7 +214,7 @@ def compute_annual_max_spell_lengths(
         valid = np.isfinite(data)
         valid_count = valid.sum(axis=0)
 
-        exceed = valid & (data > threshold_2d[None, :, :])
+        exceed = valid & (data > threshold_values[None, ...])
 
         annual_max = longest_spell_over_threshold(
             exceed=exceed,
@@ -224,10 +226,17 @@ def compute_annual_max_spell_lengths(
 
     annual_max_arr = np.stack(annual_max_list, axis=0)
 
+    if "points" in da.dims:
+        coords = {"year": years, "points": da["points"]}
+        dims = ("year", "points")
+    else:
+        coords = {"year": years, "lat": da["lat"], "lon": da["lon"]}
+        dims = ("year", "lat", "lon")
+
     return xr.DataArray(
         annual_max_arr,
-        coords={"year": years, "lat": da["lat"], "lon": da["lon"]},
-        dims=("year", "lat", "lon"),
+        coords=coords,
+        dims=dims,
         name="annual_max_spell",
     )
 
@@ -394,14 +403,25 @@ def main():
     print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
     print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
 
-    wams_pred, wams_obs, bwams = compute_wams_fields(
+    pred_eval, obs_eval = restrict_to_evaluation_pixels(
         pred=pred,
         obs=obs,
+        spatial_mask=spatial_mask,
+        min_valid=min_valid_days,
+    )
+    print(f"Computation pixels        : {pred_eval.sizes['points']}")
+
+    wams_pred, wams_obs, bwams = compute_wams_fields(
+        pred=pred_eval,
+        obs=obs_eval,
         threshold_quantile=threshold_quantile,
         min_spell_length=min_spell_length,
         min_valid_days=min_valid_days,
         min_valid_years=min_valid_years,
     )
+    wams_pred = restore_points_to_grid(wams_pred, spatial_mask)
+    wams_obs = restore_points_to_grid(wams_obs, spatial_mask)
+    bwams = restore_points_to_grid(bwams, spatial_mask)
 
     ds_out = xr.Dataset(
         {

@@ -17,6 +17,8 @@ from ...common import (
     get_months,
     get_spatial_context,
     open_temperature_dataarray,
+    restrict_to_evaluation_pixels,
+    restore_points_to_grid,
     save_json,
     save_summary_csv,
     spatial_summary,
@@ -374,18 +376,33 @@ def main():
     print(f"Spatial evaluation domain: {spatial_ctx.eval_domain}")
     print(f"Valid spatial pixels      : {int(spatial_mask.sum().values)}")
 
+    pred_eval, obs_eval = restrict_to_evaluation_pixels(
+        pred=pred,
+        obs=obs,
+        spatial_mask=spatial_mask,
+        min_valid=min_valid,
+    )
+    print(f"Computation pixels        : {pred_eval.sizes['points']}")
+
     summary_rows = []
 
     for season_name, months in selected_seasons.items():
         print(f"\n--- Computing B-98 for {season_name} ---")
 
         ds_out = compute_one_tag(
-            pred=pred,
-            obs=obs,
+            pred=pred_eval,
+            obs=obs_eval,
             season_name=season_name,
             months=months,
             q=q,
             min_valid=min_valid,
+        )
+        ds_out = xr.Dataset(
+            {
+                var_name: restore_points_to_grid(ds_out[var_name], spatial_mask)
+                for var_name in ["p98_pred", "p98_obs", "b98"]
+            },
+            attrs=ds_out.attrs,
         )
 
         ds_out.attrs["metric"] = "b98"
