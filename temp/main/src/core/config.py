@@ -247,7 +247,7 @@ class Config:
         # Mappings
         # ----------------------
         # Gardé pour l'ancien format LMDZ brut :
-        # z -> geop, q -> rhum, t -> temp, u -> vitu, v -> vitv
+        # z -> geop, q -> shum, t -> temp, u -> vitu, v -> vitv
         self.lmdz_var_map = cfg_dict.get("mappings", {}).get("lmdz_var_map", {})
 
 

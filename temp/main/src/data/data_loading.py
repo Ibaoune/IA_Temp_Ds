@@ -393,11 +393,11 @@ def load_datasets(cfg):
 
     # Default mapping for raw LMDZ files
     # z/q/t/u/v are the generic names used in the config,
-    # while geop/rhum/temp/vitu/vitv are the real LMDZ filenames.
+    # while geop/shum/temp/vitu/vitv are the real LMDZ filenames.
     if not lmdz_var_map:
         lmdz_var_map = {
             "z": "geop",
-            "q": "rhum",
+            "q": "shum",
             "t": "temp",
             "u": "vitu",
             "v": "vitv",
@@ -446,9 +446,8 @@ def load_datasets(cfg):
                     suffix = s
                     break
 
-            # q is not directly stored as q in raw LMDZ.
-            # It must be reconstructed from rhum + temp.
-            if var_key == "q":
+            # Only reconstruct q when the mapping explicitly asks for relative humidity.
+            if var_key == "q" and lmdz_var.lower() in {"rhum", "rh", "relative_humidity"}:
                 q_arrays = _load_lmdz_q_from_rh(
                     cfg,
                     levels,
