@@ -22,6 +22,7 @@ from .common_bano import (
 # ==========================================================
 
 METRIC_SPECS = [
+    # Fixed y-limits inspired by the Baño-Medina figure, expanded only as needed.
     {
         "panel": "(a)",
         "title": "",
@@ -32,7 +33,7 @@ METRIC_SPECS = [
             "rmse_annual_mean_period.nc",
         ],
         "vars": ["rmse"],
-        "ylim": None,
+        "ylim": (0.7, 2.76),
         "ref": 1.05,
     },
     {
@@ -44,7 +45,7 @@ METRIC_SPECS = [
             "corr_d_annual_mean_period.nc",
         ],
         "vars": ["corr_d"],
-        "ylim": None,
+        "ylim": (0.86, 1.00),
         "ref": 0.96,
     },
     {
@@ -56,7 +57,7 @@ METRIC_SPECS = [
             "rstd_annual_mean_period.nc",
         ],
         "vars": ["rstd", "std_ratio", "ratio_std"],
-        "ylim": None,
+        "ylim": (0.68, 1.03),
         "ref": 1.00,
     },
     {
@@ -70,7 +71,7 @@ METRIC_SPECS = [
             "bias_annual_mean_period.nc",
         ],
         "vars": ["bias"],
-        "ylim": None,
+        "ylim": (-1.82, 0.91),
         "ref": 0.0,
     },
     {
@@ -82,7 +83,7 @@ METRIC_SPECS = [
             "b02_annual_mean_period.nc",
         ],
         "vars": ["b02", "bias_p02", "bp02"],
-        "ylim": None,
+        "ylim": (-0.95, 2.66),
         "ref": 0.55,
     },
     {
@@ -94,7 +95,7 @@ METRIC_SPECS = [
             "b98_annual_mean_period.nc",
         ],
         "vars": ["b98", "bias_p98", "bp98"],
-        "ylim": None,
+        "ylim": (-3.68, 1.0),
         "ref": 0.10,
     },
     {
@@ -106,7 +107,7 @@ METRIC_SPECS = [
             "ac1_annual_mean_period.nc",
         ],
         "vars": ["bac1", "bias_ac1", "ac1"],
-        "ylim": None,
+        "ylim": (-0.4, 0.4),
         "ref": 0.0,
     },
     {
@@ -118,7 +119,7 @@ METRIC_SPECS = [
             "wams_annual_mean_period.nc",
         ],
         "vars": ["bwams", "bias_wams", "wams"],
-        "ylim": None,
+        "ylim": (-3, 5),
         "ref": 0.0,
     },
     {
@@ -130,7 +131,7 @@ METRIC_SPECS = [
             "cams_annual_mean_period.nc",
         ],
         "vars": ["bcams", "bias_cams", "cams"],
-        "ylim": None,
+        "ylim": (-3, 5),
         "ref": 0.0,
     },
 ]
