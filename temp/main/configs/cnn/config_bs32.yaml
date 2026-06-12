@@ -4,7 +4,7 @@
 
 general:
   verbose: true
-  experiment: "cnn_temperature"
+  experiment: "cnn_bs32_temperature"
   variable: "temp"
   target: "mswt"
   src: "era5"
