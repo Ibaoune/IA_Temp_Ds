@@ -4,11 +4,11 @@
 
 general:
   verbose: true
-  experiment: "cnn_temperature"
+  experiment: "cnn1_mse"
   variable: "temp"
   target: "mswt"
   src: "era5"
-  model_type: "cnn10"
+  model_type: "cnn1"
   interpolation_type: "linear"
   variables: ["z", "q", "t", "u", "v"]
   levels: [500, 700, 850, 1000]
@@ -18,7 +18,7 @@ training:
   learning_rate: 1e-3
   epochs: 100
   batch_size: 64 # le nombre d’exemples envoyés au modèle en une seule itération.
-  loss_type: "gaussian" 
+  loss_type: "mse" 
   norm_mode: "gridbox"         
   early_stopping:
     enable: true
@@ -49,7 +49,7 @@ training:
     percentage: 0.1
 
 cnn:
-  mode: "cnn10"
+  mode: "cnn1"
 
 region:
   lon_min: -18

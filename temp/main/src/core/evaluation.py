@@ -87,7 +87,7 @@ def _build_model(cfg, x_test, y_test):
 
         return WrappedUNet()
 
-    elif cfg.model_type == "cnn":
+    elif cfg.model_type in {"cnn", "cnn1", "cnn10"}:
         from src.models.cnn import CNN
 
         cnn_mode = getattr(cfg, "cnn_mode", "cnn10")

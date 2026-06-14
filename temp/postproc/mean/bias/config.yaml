@@ -1,5 +1,5 @@
 project:
-  main_config_path: "./temp/main/configs/cnn/config.yaml"
+  main_config_path: "./temp/main/configs/unet/config_unet1_mse.yaml"
 
 metric:
   name: "bias"

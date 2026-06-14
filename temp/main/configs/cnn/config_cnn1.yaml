@@ -8,7 +8,7 @@ general:
   variable: "temp"
   target: "mswt"
   src: "era5"
-  model_type: "cnn"
+  model_type: "cnn1"
   interpolation_type: "linear"
   variables: ["z", "q", "t", "u", "v"]
   levels: [500, 700, 850, 1000]

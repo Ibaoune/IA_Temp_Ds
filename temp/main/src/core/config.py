@@ -35,6 +35,7 @@ def _to_bool(x):
 def resolve_model_config_path(configs_root, model_type, config_name=None):
     configs_root = Path(configs_root)
     model_key = str(model_type or "unet").lower()
+    config_dir_key = "cnn" if model_key in {"cnn1", "cnn10"} else model_key
     unified_unet_dir = configs_root / "unet"
 
     if config_name not in (None, "", "null"):
@@ -52,7 +53,7 @@ def resolve_model_config_path(configs_root, model_type, config_name=None):
                 return legacy_candidate
             return candidate
 
-        return configs_root / model_key / requested
+        return configs_root / config_dir_key / requested
 
     default_names = {
         "unet": "config_arch.yaml",
@@ -63,7 +64,7 @@ def resolve_model_config_path(configs_root, model_type, config_name=None):
         if candidate.exists():
             return candidate
 
-    legacy_candidate = configs_root / model_key / "config.yaml"
+    legacy_candidate = configs_root / config_dir_key / "config.yaml"
     if legacy_candidate.exists():
         return legacy_candidate
 
@@ -93,11 +94,32 @@ class Config:
         self.target = str(cfg_dict["general"].get("target"))
         self.src = str(cfg_dict["general"].get("src"))
         self.model_type = str(cfg_dict["general"]["model_type"]).lower()
-        allowed_models = {"cnn", "glm", "unet", "unet1"}
+        allowed_models = {"cnn", "cnn1", "cnn10", "glm", "unet", "unet1"}
         if self.model_type not in allowed_models:
             raise ValueError(
                 f"Unsupported model_type '{self.model_type}'. "
                 f"Expected one of: {sorted(allowed_models)}"
+            )
+
+        cnn_cfg = cfg_dict.get("cnn", {})
+        raw_cnn_mode = cnn_cfg.get("mode", "")
+        yaml_cnn_mode = "" if raw_cnn_mode is None else str(raw_cnn_mode).strip().lower()
+        if yaml_cnn_mode == "null":
+            yaml_cnn_mode = ""
+        if self.model_type in {"cnn1", "cnn10"}:
+            self.cnn_mode = self.model_type
+            if yaml_cnn_mode and yaml_cnn_mode != self.cnn_mode:
+                raise ValueError(
+                    f"Inconsistent CNN config: model_type='{self.model_type}' "
+                    f"but cnn.mode='{yaml_cnn_mode}'."
+                )
+        else:
+            self.cnn_mode = yaml_cnn_mode or "cnn10"
+
+        if self.model_type in {"cnn", "cnn1", "cnn10"} and self.cnn_mode not in {"cnn1", "cnn10"}:
+            raise ValueError(
+                f"Unsupported cnn.mode '{self.cnn_mode}'. "
+                "Expected one of: ['cnn1', 'cnn10']"
             )
         self.interpolation_type = str(cfg_dict["general"].get("interpolation_type", "nearest"))
         self.variables = cfg_dict["general"].get("variables", ["z", "q", "u", "v", "t"])
