@@ -4,11 +4,11 @@
 
 general:
   verbose: true
-  experiment: "cnn_bs32_temperature"
+  experiment: "cnn10_bs32_temperature"
   variable: "temp"
   target: "mswt"
   src: "era5"
-  model_type: "cnn"
+  model_type: "cnn10"
   interpolation_type: "linear"
   variables: ["z", "q", "t", "u", "v"]
   levels: [500, 700, 850, 1000]
