@@ -1,3 +1,4 @@
+# --- Autoriser le suivi exclusif des graphiques PNG de post-traitement ---
 # Data and files to ignore
 DATA1/
 morocco_shapefile/
@@ -28,3 +29,8 @@ log.txt
 #configs
 temp/main/configs/unet/lmdz*.yaml
 temp/postproc/**/lmdz*.yaml
+# --- Autoriser le suivi exclusif des graphiques PNG de post-traitement ---
+!temp/era5_mswt/postproc/results/
+temp/era5_mswt/postproc/results/**/*
+!temp/era5_mswt/postproc/results/**/
+!temp/era5_mswt/postproc/results/**/*.png
