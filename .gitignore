@@ -15,6 +15,8 @@ glm_pixel_explanation.csv
 temp/XAI/
 temp/main/inspect_glm.py
 #temp/postproc/bano_compare/
+temp/postproc/_runs/
+temp/postproc/comparison_model/
 precip
 CRNM
 # Python
