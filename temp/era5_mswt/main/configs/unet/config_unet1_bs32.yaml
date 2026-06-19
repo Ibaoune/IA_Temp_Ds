@@ -1,0 +1,78 @@
+###########################################################
+# UNet configuration
+###########################################################
+
+general:
+  verbose: true
+  experiment: "unet1_temp_bs32" # for "unet_temperature" or "unet1_temperature"
+  variable: "temp"
+  target: "mswt"
+  src: "era5"
+  model_type: "unet1" # for "unet" or "unet1"
+  interpolation_type: "linear"
+  variables: ["z", "q", "t", "u", "v"]
+  levels: [500, 700, 850, 1000]
+  resolution: 2.0
+
+training:
+  learning_rate: 1e-3
+  epochs: 100
+  batch_size: 32 # le nombre d’exemples envoyés au modèle en une seule itération.
+  loss_type: "gaussian" 
+  norm_mode: "gridbox"         
+  early_stopping:
+    enable: true
+    max: 15
+  LR_scheduler:
+    enable: true
+    patience: 5
+    factor: 0.5
+    min_lr: 1e-6
+  gradient_clipping: # éviter que les gradients deviennent trop grands.
+    enable: true
+    value: 1.0
+  weight_decay: # régularisation pour éviter le surapprentissage.
+    enable: true
+    value: 1e-4
+  optimizer: "adam"
+  dropout:
+    enable: true
+    value: 0.1
+  scheduler: # a assurer 
+    enable: false
+    type: "cosine"
+  group_norm:
+    enable: true
+    num_groups: 8
+  validation:
+    enable: true
+    percentage: 0.2
+
+region:
+  lon_min: -18
+  lon_max: 0
+  lat_min: 21
+  lat_max: 36
+
+dates:
+  train:
+    start: "1980-01-01"
+    end: "2005-12-31"
+  test:
+    start: "2006-01-01"
+    end: "2020-12-31"
+
+paths:
+  # Paths for Mohammad's environment
+  root_dir: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5"
+  results_dir: "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/results/"
+  shapefile_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/shapefiles/Morocco_shpfile/DA_REGIONS_12R.shp"
+  era5_predictor_pattern: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/{var}_1979-2020_levels.nc"
+  mswt_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/obs/mswep/mswt_1979_2020.nc"
+  
+  # Paths for Souad's environment
+  #root_dir: ""
+  #results_dir: "./temp/era5_mswt/results/"
+  #shapefile_path: "./morocco_shapefile/morocco_unified_fixed_v2.shp"
+  #era5_predictor_pattern: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/{var}_1979-2020_levels.nc"
+  #mswt_path: "./DATA1/predictand_mswet/mswt_1979_2020.nc"

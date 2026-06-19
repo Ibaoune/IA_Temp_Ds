@@ -1,0 +1,41 @@
+project:
+  main_config_path: "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/configs/unet/unet_dropout_02.yaml"
+
+metric:
+  name: "cams"
+  threshold_quantile: 0.10
+  min_spell_length: 2
+  min_valid_days: 10
+  min_valid_years: 1
+
+spatial:
+  eval_domain: "land"   # "full_domain" | "morocco_shape" | "land"
+  save_mask: true
+
+  # utilisé si eval_domain = "morocco_shape"
+  shapefile_path: null           # null => cfg.shapefile_path du main config
+
+  # utilisé si eval_domain = "land"
+  land_shapefile_path: null      # null => Natural Earth land polygons
+
+plot:
+  display_domain: "land"   # "morocco_shape" | "land"
+
+data:
+  prediction_path: null
+  prediction_var: "air_temperature"
+  prediction_units: null
+
+  reference_path: null
+  reference_var: null
+  reference_units: null
+
+time:
+  use_test_period_from_main_config: true
+  start_date: null
+  end_date: null
+
+output:
+  save_netcdf: true
+  save_summary_json: true
+  save_summary_csv: true

@@ -1,0 +1,400 @@
+Starting training for ../configs/unet/unet_bs_64.yaml
+Using device: cuda
+Using device: cuda
+=== Starting training process for temp ===
+=== Loading datasets (src=era5, target=mswt) ===
+Loading temp file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/obs/mswep/mswt_1979_2020.nc
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'time': 15341, 'lat': 220, 'lon': 220})
+   shape       : (15341, 220, 220)
+   lon range   : -20.950000762939453 → 0.9500091671943665
+   lat range   : 19.049999237060547 → 40.95000076293945
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'time': 15341, 'lat': 160, 'lon': 180})
+   shape       : (15341, 160, 180)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 37.0, None)
+TEMP shapes → train=(9862, 160, 180), test=(5479, 160, 180)
+Checking target time resolution...
+   [STATS] temp (train): mean=21.6071, min=-13.8125, max=43.75
+   [STATS] temp (test): mean=22.1381, min=-12.5625, max=43.75
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/z_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 65, 'longitude': 73})
+   shape       : (4, 15341, 65, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 37.0, None)
+  → Extracting level 500 from z
+   [STATS] z_500: mean=57051.9, min=51355.7, max=58985.4
+  → Extracting level 700 from z
+   [STATS] z_700: mean=30934.4, min=27009.6, max=32387.8
+  → Extracting level 850 from z
+   [STATS] z_850: mean=15056.9, min=11703.2, max=16740.1
+  → Extracting level 1000 from z
+   [STATS] z_1000: mean=1404.33, min=-1629.04, max=3461.49
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/t_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 65, 'longitude': 73})
+   shape       : (4, 15341, 65, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 37.0, None)
+  → Extracting level 500 from t
+   [STATS] t_500: mean=-11.9415, min=-37.6865, max=-0.750632
+  → Extracting level 700 from t
+   [STATS] t_700: mean=6.14864, min=-20.3726, max=18.2581
+  → Extracting level 850 from t
+   [STATS] t_850: mean=15.8876, min=-9.36083, max=34.181
+  → Extracting level 1000 from t
+   [STATS] t_1000: mean=15.8876, min=-9.36083, max=34.181
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/q_1979-2020_levels.nc...
+  ERROR: [Errno -101] NetCDF: HDF error: '/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/q_1979-2020_levels.nc'
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/u_1979-2020_levels.nc...
+  ERROR: [Errno -101] NetCDF: HDF error: '/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/u_1979-2020_levels.nc'
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/v_1979-2020_levels.nc...
+  ERROR: [Errno -101] NetCDF: HDF error: '/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/v_1979-2020_levels.nc'
+Checking time resolution...
+Predictor Shape (X): (15341, 8, 9, 10)
+Target Train Shape (y_train): torch.Size([9862, 160, 180])
+Target Test Shape (y_test): torch.Size([5479, 160, 180])
+=== Finished loading datasets ===
+=== Preprocessing data ===
+Applying normalization mode: gridbox
+Normalization done.
+--- Processing temp (train) ---
+train raw [degree_Celsius] → min=-13.81, max=43.75, mean=21.61
+  Units already in Celsius → skipping conversion
+train converted [C] → min=-13.81, max=43.75, mean=21.61
+--- Processing temp (test) ---
+test raw [degree_Celsius] → min=-12.56, max=43.75, mean=22.14
+  Units already in Celsius → skipping conversion
+test converted [C] → min=-12.56, max=43.75, mean=22.14
+=== Preprocessing complete ===
+Initializing model for training...
+
+----------- Machine Features -----------
+ OS: Linux 4.18.0-553.124.1.el8_10.0.2.x86_64
+ CPU: x86_64 (Unknown (psutil missing) cores)
+ RAM: Unknown (psutil missing) GB
+ GPU 0: NVIDIA A100-SXM4-80GB (79.25 GB)
+----------------------------------------
+Epoch 1/100 - Duration: 16.49s - Train Loss: 12.1915 - Val Loss: 4.1392
+Estimated training process duration: 27:29
+
+Learning rate changed: 1.000000e-03 -> 9.997535e-04
+Best model updated at epoch 1 
+Epoch 2/100 - Duration: 16.20s - Train Loss: 3.7671 - Val Loss: 2.9488
+Learning rate changed: 9.997535e-04 -> 9.990144e-04
+Best model updated at epoch 2 
+Epoch 3/100 - Duration: 16.20s - Train Loss: 2.7584 - Val Loss: 2.2958
+Learning rate changed: 9.990144e-04 -> 9.977832e-04
+Best model updated at epoch 3 
+Epoch 4/100 - Duration: 16.20s - Train Loss: 2.3926 - Val Loss: 2.0189
+Learning rate changed: 9.977832e-04 -> 9.960613e-04
+Best model updated at epoch 4 
+Epoch 5/100 - Duration: 16.20s - Train Loss: 2.2733 - Val Loss: 1.9951
+Learning rate changed: 9.960613e-04 -> 9.938503e-04
+Best model updated at epoch 5 
+Epoch 6/100 - Duration: 16.20s - Train Loss: 2.2178 - Val Loss: 1.9593
+Learning rate changed: 9.938503e-04 -> 9.911525e-04
+Best model updated at epoch 6 
+Epoch 7/100 - Duration: 16.20s - Train Loss: 2.1907 - Val Loss: 1.9673
+Learning rate changed: 9.911525e-04 -> 9.879704e-04
+No improvement at epoch 7 (patience: 1/15)
+Epoch 8/100 - Duration: 16.20s - Train Loss: 2.1507 - Val Loss: 1.9557
+Learning rate changed: 9.879704e-04 -> 9.843073e-04
+Best model updated at epoch 8 
+Epoch 9/100 - Duration: 16.20s - Train Loss: 2.1287 - Val Loss: 1.8505
+Learning rate changed: 9.843073e-04 -> 9.801667e-04
+Best model updated at epoch 9 
+Epoch 10/100 - Duration: 16.20s - Train Loss: 2.1175 - Val Loss: 1.8366
+Learning rate changed: 9.801667e-04 -> 9.755527e-04
+Best model updated at epoch 10 
+Epoch 11/100 - Duration: 16.20s - Train Loss: 2.0994 - Val Loss: 1.8249
+Learning rate changed: 9.755527e-04 -> 9.704699e-04
+Best model updated at epoch 11 
+Epoch 12/100 - Duration: 16.20s - Train Loss: 2.0679 - Val Loss: 1.7890
+Learning rate changed: 9.704699e-04 -> 9.649234e-04
+Best model updated at epoch 12 
+Epoch 13/100 - Duration: 16.20s - Train Loss: 2.0480 - Val Loss: 1.8288
+Learning rate changed: 9.649234e-04 -> 9.589184e-04
+No improvement at epoch 13 (patience: 1/15)
+Epoch 14/100 - Duration: 16.19s - Train Loss: 2.0510 - Val Loss: 1.7521
+Learning rate changed: 9.589184e-04 -> 9.524611e-04
+Best model updated at epoch 14 
+Epoch 15/100 - Duration: 16.20s - Train Loss: 2.0346 - Val Loss: 1.7794
+Learning rate changed: 9.524611e-04 -> 9.455578e-04
+No improvement at epoch 15 (patience: 1/15)
+Epoch 16/100 - Duration: 16.20s - Train Loss: 2.0252 - Val Loss: 1.7561
+Learning rate changed: 9.455578e-04 -> 9.382152e-04
+No improvement at epoch 16 (patience: 2/15)
+Epoch 17/100 - Duration: 16.20s - Train Loss: 2.0040 - Val Loss: 1.7363
+Learning rate changed: 9.382152e-04 -> 9.304406e-04
+Best model updated at epoch 17 
+Epoch 18/100 - Duration: 16.20s - Train Loss: 1.9951 - Val Loss: 1.7144
+Learning rate changed: 9.304406e-04 -> 9.222418e-04
+Best model updated at epoch 18 
+Epoch 19/100 - Duration: 16.20s - Train Loss: 1.9931 - Val Loss: 1.6879
+Learning rate changed: 9.222418e-04 -> 9.136267e-04
+Best model updated at epoch 19 
+Epoch 20/100 - Duration: 16.21s - Train Loss: 1.9775 - Val Loss: 1.6984
+Learning rate changed: 9.136267e-04 -> 9.046040e-04
+No improvement at epoch 20 (patience: 1/15)
+Epoch 21/100 - Duration: 16.20s - Train Loss: 1.9709 - Val Loss: 1.7059
+Learning rate changed: 9.046040e-04 -> 8.951824e-04
+No improvement at epoch 21 (patience: 2/15)
+Epoch 22/100 - Duration: 16.21s - Train Loss: 1.9515 - Val Loss: 1.7124
+Learning rate changed: 8.951824e-04 -> 8.853714e-04
+No improvement at epoch 22 (patience: 3/15)
+Epoch 23/100 - Duration: 16.21s - Train Loss: 1.9572 - Val Loss: 1.6555
+Learning rate changed: 8.853714e-04 -> 8.751805e-04
+Best model updated at epoch 23 
+Epoch 24/100 - Duration: 16.20s - Train Loss: 1.9471 - Val Loss: 1.6772
+Learning rate changed: 8.751805e-04 -> 8.646198e-04
+No improvement at epoch 24 (patience: 1/15)
+Epoch 25/100 - Duration: 16.19s - Train Loss: 1.9361 - Val Loss: 1.6827
+Learning rate changed: 8.646198e-04 -> 8.536998e-04
+No improvement at epoch 25 (patience: 2/15)
+Epoch 26/100 - Duration: 16.19s - Train Loss: 1.9300 - Val Loss: 1.6743
+Learning rate changed: 8.536998e-04 -> 8.424313e-04
+No improvement at epoch 26 (patience: 3/15)
+Epoch 27/100 - Duration: 16.19s - Train Loss: 1.9262 - Val Loss: 1.6928
+Learning rate changed: 8.424313e-04 -> 8.308253e-04
+No improvement at epoch 27 (patience: 4/15)
+Epoch 28/100 - Duration: 16.19s - Train Loss: 1.9292 - Val Loss: 1.6127
+Learning rate changed: 8.308253e-04 -> 8.188933e-04
+Best model updated at epoch 28 
+Epoch 29/100 - Duration: 16.20s - Train Loss: 1.9164 - Val Loss: 1.6366
+Learning rate changed: 8.188933e-04 -> 8.066471e-04
+No improvement at epoch 29 (patience: 1/15)
+Epoch 30/100 - Duration: 16.21s - Train Loss: 1.8975 - Val Loss: 1.6653
+Learning rate changed: 8.066471e-04 -> 7.940987e-04
+No improvement at epoch 30 (patience: 2/15)
+Epoch 31/100 - Duration: 16.21s - Train Loss: 1.9066 - Val Loss: 1.6408
+Learning rate changed: 7.940987e-04 -> 7.812606e-04
+No improvement at epoch 31 (patience: 3/15)
+Epoch 32/100 - Duration: 16.21s - Train Loss: 1.8873 - Val Loss: 1.6130
+Learning rate changed: 7.812606e-04 -> 7.681455e-04
+No improvement at epoch 32 (patience: 4/15)
+Epoch 33/100 - Duration: 16.20s - Train Loss: 1.9049 - Val Loss: 1.6174
+Learning rate changed: 7.681455e-04 -> 7.547662e-04
+No improvement at epoch 33 (patience: 5/15)
+Epoch 34/100 - Duration: 16.21s - Train Loss: 1.8889 - Val Loss: 1.6440
+Learning rate changed: 7.547662e-04 -> 7.411360e-04
+No improvement at epoch 34 (patience: 6/15)
+Epoch 35/100 - Duration: 16.20s - Train Loss: 1.8871 - Val Loss: 1.6304
+Learning rate changed: 7.411360e-04 -> 7.272683e-04
+No improvement at epoch 35 (patience: 7/15)
+Epoch 36/100 - Duration: 16.21s - Train Loss: 1.8869 - Val Loss: 1.6073
+Learning rate changed: 7.272683e-04 -> 7.131768e-04
+Best model updated at epoch 36 
+Epoch 37/100 - Duration: 16.20s - Train Loss: 1.8838 - Val Loss: 1.6016
+Learning rate changed: 7.131768e-04 -> 6.988754e-04
+Best model updated at epoch 37 
+Epoch 38/100 - Duration: 16.20s - Train Loss: 1.8703 - Val Loss: 1.6080
+Learning rate changed: 6.988754e-04 -> 6.843782e-04
+No improvement at epoch 38 (patience: 1/15)
+Epoch 39/100 - Duration: 16.20s - Train Loss: 1.8561 - Val Loss: 1.5892
+Learning rate changed: 6.843782e-04 -> 6.696996e-04
+Best model updated at epoch 39 
+Epoch 40/100 - Duration: 16.20s - Train Loss: 1.8557 - Val Loss: 1.6435
+Learning rate changed: 6.696996e-04 -> 6.548540e-04
+No improvement at epoch 40 (patience: 1/15)
+Epoch 41/100 - Duration: 16.20s - Train Loss: 1.8625 - Val Loss: 1.5755
+Learning rate changed: 6.548540e-04 -> 6.398561e-04
+Best model updated at epoch 41 
+Epoch 42/100 - Duration: 16.21s - Train Loss: 1.8592 - Val Loss: 1.5856
+Learning rate changed: 6.398561e-04 -> 6.247206e-04
+No improvement at epoch 42 (patience: 1/15)
+Epoch 43/100 - Duration: 16.22s - Train Loss: 1.8581 - Val Loss: 1.6049
+Learning rate changed: 6.247206e-04 -> 6.094625e-04
+No improvement at epoch 43 (patience: 2/15)
+Epoch 44/100 - Duration: 16.21s - Train Loss: 1.8423 - Val Loss: 1.5997
+Learning rate changed: 6.094625e-04 -> 5.940970e-04
+No improvement at epoch 44 (patience: 3/15)
+Epoch 45/100 - Duration: 16.19s - Train Loss: 1.8408 - Val Loss: 1.5643
+Learning rate changed: 5.940970e-04 -> 5.786390e-04
+Best model updated at epoch 45 
+Epoch 46/100 - Duration: 16.19s - Train Loss: 1.8360 - Val Loss: 1.5755
+Learning rate changed: 5.786390e-04 -> 5.631040e-04
+No improvement at epoch 46 (patience: 1/15)
+Epoch 47/100 - Duration: 16.19s - Train Loss: 1.8348 - Val Loss: 1.5784
+Learning rate changed: 5.631040e-04 -> 5.475071e-04
+No improvement at epoch 47 (patience: 2/15)
+Epoch 48/100 - Duration: 16.18s - Train Loss: 1.8230 - Val Loss: 1.5584
+Learning rate changed: 5.475071e-04 -> 5.318639e-04
+Best model updated at epoch 48 
+Epoch 49/100 - Duration: 16.19s - Train Loss: 1.8223 - Val Loss: 1.5771
+Learning rate changed: 5.318639e-04 -> 5.161897e-04
+No improvement at epoch 49 (patience: 1/15)
+Epoch 50/100 - Duration: 16.20s - Train Loss: 1.8269 - Val Loss: 1.5398
+Learning rate changed: 5.161897e-04 -> 5.005000e-04
+Best model updated at epoch 50 
+Epoch 51/100 - Duration: 16.20s - Train Loss: 1.8295 - Val Loss: 1.5610
+Learning rate changed: 5.005000e-04 -> 4.848103e-04
+No improvement at epoch 51 (patience: 1/15)
+Epoch 52/100 - Duration: 16.19s - Train Loss: 1.8176 - Val Loss: 1.5675
+Learning rate changed: 4.848103e-04 -> 4.691361e-04
+No improvement at epoch 52 (patience: 2/15)
+Epoch 53/100 - Duration: 16.19s - Train Loss: 1.8143 - Val Loss: 1.5653
+Learning rate changed: 4.691361e-04 -> 4.534929e-04
+No improvement at epoch 53 (patience: 3/15)
+Epoch 54/100 - Duration: 16.19s - Train Loss: 1.8047 - Val Loss: 1.5392
+Learning rate changed: 4.534929e-04 -> 4.378960e-04
+Best model updated at epoch 54 
+Epoch 55/100 - Duration: 16.19s - Train Loss: 1.8103 - Val Loss: 1.5485
+Learning rate changed: 4.378960e-04 -> 4.223610e-04
+No improvement at epoch 55 (patience: 1/15)
+Epoch 56/100 - Duration: 16.18s - Train Loss: 1.8114 - Val Loss: 1.5540
+Learning rate changed: 4.223610e-04 -> 4.069030e-04
+No improvement at epoch 56 (patience: 2/15)
+Epoch 57/100 - Duration: 16.19s - Train Loss: 1.8078 - Val Loss: 1.5449
+Learning rate changed: 4.069030e-04 -> 3.915375e-04
+No improvement at epoch 57 (patience: 3/15)
+Epoch 58/100 - Duration: 16.19s - Train Loss: 1.8026 - Val Loss: 1.5366
+Learning rate changed: 3.915375e-04 -> 3.762794e-04
+Best model updated at epoch 58 
+Epoch 59/100 - Duration: 16.19s - Train Loss: 1.7914 - Val Loss: 1.5146
+Learning rate changed: 3.762794e-04 -> 3.611439e-04
+Best model updated at epoch 59 
+Epoch 60/100 - Duration: 16.19s - Train Loss: 1.7988 - Val Loss: 1.5179
+Learning rate changed: 3.611439e-04 -> 3.461460e-04
+No improvement at epoch 60 (patience: 1/15)
+Epoch 61/100 - Duration: 16.19s - Train Loss: 1.7893 - Val Loss: 1.5370
+Learning rate changed: 3.461460e-04 -> 3.313004e-04
+No improvement at epoch 61 (patience: 2/15)
+Epoch 62/100 - Duration: 16.19s - Train Loss: 1.7956 - Val Loss: 1.5106
+Learning rate changed: 3.313004e-04 -> 3.166218e-04
+Best model updated at epoch 62 
+Epoch 63/100 - Duration: 16.20s - Train Loss: 1.7940 - Val Loss: 1.5210
+Learning rate changed: 3.166218e-04 -> 3.021246e-04
+No improvement at epoch 63 (patience: 1/15)
+Epoch 64/100 - Duration: 16.20s - Train Loss: 1.7918 - Val Loss: 1.5179
+Learning rate changed: 3.021246e-04 -> 2.878232e-04
+No improvement at epoch 64 (patience: 2/15)
+Epoch 65/100 - Duration: 16.20s - Train Loss: 1.7971 - Val Loss: 1.5381
+Learning rate changed: 2.878232e-04 -> 2.737317e-04
+No improvement at epoch 65 (patience: 3/15)
+Epoch 66/100 - Duration: 16.20s - Train Loss: 1.7811 - Val Loss: 1.5073
+Learning rate changed: 2.737317e-04 -> 2.598640e-04
+Best model updated at epoch 66 
+Epoch 67/100 - Duration: 16.20s - Train Loss: 1.7750 - Val Loss: 1.5159
+Learning rate changed: 2.598640e-04 -> 2.462338e-04
+No improvement at epoch 67 (patience: 1/15)
+Epoch 68/100 - Duration: 16.19s - Train Loss: 1.7770 - Val Loss: 1.5261
+Learning rate changed: 2.462338e-04 -> 2.328545e-04
+No improvement at epoch 68 (patience: 2/15)
+Epoch 69/100 - Duration: 16.19s - Train Loss: 1.7714 - Val Loss: 1.5080
+Learning rate changed: 2.328545e-04 -> 2.197394e-04
+No improvement at epoch 69 (patience: 3/15)
+Epoch 70/100 - Duration: 16.20s - Train Loss: 1.7780 - Val Loss: 1.5080
+Learning rate changed: 2.197394e-04 -> 2.069013e-04
+No improvement at epoch 70 (patience: 4/15)
+Epoch 71/100 - Duration: 16.19s - Train Loss: 1.7714 - Val Loss: 1.5228
+Learning rate changed: 2.069013e-04 -> 1.943529e-04
+No improvement at epoch 71 (patience: 5/15)
+Epoch 72/100 - Duration: 16.20s - Train Loss: 1.7721 - Val Loss: 1.5170
+Learning rate changed: 1.943529e-04 -> 1.821067e-04
+No improvement at epoch 72 (patience: 6/15)
+Epoch 73/100 - Duration: 16.20s - Train Loss: 1.7685 - Val Loss: 1.5005
+Learning rate changed: 1.821067e-04 -> 1.701747e-04
+Best model updated at epoch 73 
+Epoch 74/100 - Duration: 16.18s - Train Loss: 1.7656 - Val Loss: 1.4979
+Learning rate changed: 1.701747e-04 -> 1.585687e-04
+Best model updated at epoch 74 
+Epoch 75/100 - Duration: 16.19s - Train Loss: 1.7608 - Val Loss: 1.5055
+Learning rate changed: 1.585687e-04 -> 1.473002e-04
+No improvement at epoch 75 (patience: 1/15)
+Epoch 76/100 - Duration: 16.19s - Train Loss: 1.7687 - Val Loss: 1.5063
+Learning rate changed: 1.473002e-04 -> 1.363802e-04
+No improvement at epoch 76 (patience: 2/15)
+Epoch 77/100 - Duration: 16.20s - Train Loss: 1.7545 - Val Loss: 1.4818
+Learning rate changed: 1.363802e-04 -> 1.258195e-04
+Best model updated at epoch 77 
+Epoch 78/100 - Duration: 16.19s - Train Loss: 1.7563 - Val Loss: 1.4993
+Learning rate changed: 1.258195e-04 -> 1.156286e-04
+No improvement at epoch 78 (patience: 1/15)
+Epoch 79/100 - Duration: 16.19s - Train Loss: 1.7552 - Val Loss: 1.4902
+Learning rate changed: 1.156286e-04 -> 1.058176e-04
+No improvement at epoch 79 (patience: 2/15)
+Epoch 80/100 - Duration: 16.19s - Train Loss: 1.7483 - Val Loss: 1.4773
+Learning rate changed: 1.058176e-04 -> 9.639601e-05
+Best model updated at epoch 80 
+Epoch 81/100 - Duration: 16.18s - Train Loss: 1.7499 - Val Loss: 1.4846
+Learning rate changed: 9.639601e-05 -> 8.737325e-05
+No improvement at epoch 81 (patience: 1/15)
+Epoch 82/100 - Duration: 16.18s - Train Loss: 1.7567 - Val Loss: 1.4889
+Learning rate changed: 8.737325e-05 -> 7.875820e-05
+No improvement at epoch 82 (patience: 2/15)
+Epoch 83/100 - Duration: 16.18s - Train Loss: 1.7539 - Val Loss: 1.4794
+Learning rate changed: 7.875820e-05 -> 7.055936e-05
+No improvement at epoch 83 (patience: 3/15)
+Epoch 84/100 - Duration: 16.18s - Train Loss: 1.7524 - Val Loss: 1.4848
+Learning rate changed: 7.055936e-05 -> 6.278481e-05
+No improvement at epoch 84 (patience: 4/15)
+Epoch 85/100 - Duration: 16.18s - Train Loss: 1.7476 - Val Loss: 1.4855
+Learning rate changed: 6.278481e-05 -> 5.544224e-05
+No improvement at epoch 85 (patience: 5/15)
+Epoch 86/100 - Duration: 16.18s - Train Loss: 1.7445 - Val Loss: 1.4816
+Learning rate changed: 5.544224e-05 -> 4.853889e-05
+No improvement at epoch 86 (patience: 6/15)
+Epoch 87/100 - Duration: 16.18s - Train Loss: 1.7501 - Val Loss: 1.4809
+Learning rate changed: 4.853889e-05 -> 4.208156e-05
+No improvement at epoch 87 (patience: 7/15)
+Epoch 88/100 - Duration: 16.18s - Train Loss: 1.7437 - Val Loss: 1.4771
+Learning rate changed: 4.208156e-05 -> 3.607665e-05
+Best model updated at epoch 88 
+Epoch 89/100 - Duration: 16.19s - Train Loss: 1.7529 - Val Loss: 1.4878
+Learning rate changed: 3.607665e-05 -> 3.053006e-05
+No improvement at epoch 89 (patience: 1/15)
+Epoch 90/100 - Duration: 16.19s - Train Loss: 1.7480 - Val Loss: 1.4775
+Learning rate changed: 3.053006e-05 -> 2.544727e-05
+No improvement at epoch 90 (patience: 2/15)
+Epoch 91/100 - Duration: 16.19s - Train Loss: 1.7452 - Val Loss: 1.4735
+Learning rate changed: 2.544727e-05 -> 2.083330e-05
+Best model updated at epoch 91 
+Epoch 92/100 - Duration: 16.19s - Train Loss: 1.7450 - Val Loss: 1.4716
+Learning rate changed: 2.083330e-05 -> 1.669271e-05
+Best model updated at epoch 92 
+Epoch 93/100 - Duration: 16.20s - Train Loss: 1.7445 - Val Loss: 1.4757
+Learning rate changed: 1.669271e-05 -> 1.302958e-05
+No improvement at epoch 93 (patience: 1/15)
+Epoch 94/100 - Duration: 16.20s - Train Loss: 1.7412 - Val Loss: 1.4790
+Learning rate changed: 1.302958e-05 -> 9.847518e-06
+No improvement at epoch 94 (patience: 2/15)
+Epoch 95/100 - Duration: 16.20s - Train Loss: 1.7424 - Val Loss: 1.4770
+Learning rate changed: 9.847518e-06 -> 7.149674e-06
+No improvement at epoch 95 (patience: 3/15)
+Epoch 96/100 - Duration: 16.20s - Train Loss: 1.7357 - Val Loss: 1.4745
+Learning rate changed: 7.149674e-06 -> 4.938707e-06
+No improvement at epoch 96 (patience: 4/15)
+Epoch 97/100 - Duration: 16.20s - Train Loss: 1.7468 - Val Loss: 1.4746
+Learning rate changed: 4.938707e-06 -> 3.216799e-06
+No improvement at epoch 97 (patience: 5/15)
+Epoch 98/100 - Duration: 16.20s - Train Loss: 1.7411 - Val Loss: 1.4733
+Learning rate changed: 3.216799e-06 -> 1.985649e-06
+No improvement at epoch 98 (patience: 6/15)
+Epoch 99/100 - Duration: 16.20s - Train Loss: 1.7494 - Val Loss: 1.4731
+Learning rate changed: 1.985649e-06 -> 1.246473e-06
+No improvement at epoch 99 (patience: 7/15)
+Epoch 100/100 - Duration: 16.20s - Train Loss: 1.7371 - Val Loss: 1.4730
+Learning rate changed: 1.246473e-06 -> 1.000000e-06
+No improvement at epoch 100 (patience: 8/15)
+
+=========== Training Summary ===========
+Best epoch         : 92
+Best monitored loss: 1.4716
+LAST model saved   : /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/results/unet_bs_64/models/unet1_temp_last.pth
+BEST model saved   : /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/results/unet_bs_64/models/unet1_temp_best.pth
+Results directory  : /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/results/unet_bs_64
+========================================
+Finished training for ../configs/unet/unet_bs_64.yaml
