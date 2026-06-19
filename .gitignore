@@ -4,18 +4,18 @@ DATA1/
 morocco_shapefile/
 results/
 climate_env/
-temp/results/
-temp/results_test/
-temp/results_test_app1/
-temp/results_test_app2/
-temp/exploration/
-temp/postproc/mean/QQ/
-temp/prediction/
+temp/era5_mswt/results/
+temp/era5_mswt/results_test/
+temp/era5_mswt/results_test_app1/
+temp/era5_mswt/results_test_app2/
+temp/era5_mswt/exploration/
+temp/era5_mswt/postproc/mean/QQ/
+temp/era5_mswt/prediction/
 quick_hist_summary.csv
 glm_pixel_explanation.csv
-temp/XAI/
-temp/main/inspect_glm.py
-#temp/postproc/bano_compare/
+temp/era5_mswt/XAI/
+temp/era5_mswt/main/inspect_glm.py
+#temp/era5_mswt/postproc/bano_compare/
 precip
 CRNM
 # Python
@@ -24,11 +24,13 @@ __pycache__/
 *$py.class
 
 # Logs
+*.log
+*.bak
 log.txt
 
 #configs
-temp/main/configs/unet/lmdz*.yaml
-temp/postproc/**/lmdz*.yaml
+temp/era5_mswt/main/configs/unet/lmdz*.yaml
+temp/era5_mswt/postproc/**/lmdz*.yaml
 # --- Autoriser le suivi exclusif des graphiques PNG de post-traitement ---
 !temp/era5_mswt/postproc/results/
 temp/era5_mswt/postproc/results/**/*

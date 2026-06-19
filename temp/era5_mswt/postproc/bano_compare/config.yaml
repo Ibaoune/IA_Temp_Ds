@@ -1,0 +1,34 @@
+project:
+  main_config_path: "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/configs/unet/unet_dropout_02.yaml"
+
+experiment:
+  name: "unet_temperature"
+  model_label: "UNet"
+
+spatial:
+  eval_domain: "land"   # "full_domain" | "morocco_shape" | "land"
+  save_mask: true
+
+  # utilisé si eval_domain = "morocco_shape"
+  shapefile_path: null           # null => cfg.shapefile_path du main config
+
+  # utilisé si eval_domain = "land"
+  land_shapefile_path: null      # null => Natural Earth land polygons
+
+plot:
+  display_domain: "land"   # "morocco_shape" | "land"
+
+data:
+  observation_path: null         # null => cfg.target_path
+  observation_var: null          # null => auto infer
+  observation_units: null        # null => auto infer
+
+time:
+  train_start: "1980-01-01"
+  train_end: "2014-12-31"
+  test_start: "2015-01-01"
+  test_end: "2020-12-31"
+
+output:
+  folder_name: "bano_compare"
+  dpi: 300

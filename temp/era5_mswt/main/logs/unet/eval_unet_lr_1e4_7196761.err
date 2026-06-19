@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/eval.py", line 64, in <module>
+    main()
+  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/eval.py", line 50, in main
+    evaluate_and_save(
+  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/src/core/evaluation.py", line 138, in evaluate_and_save
+    model, train_losses, val_losses = load_model(cfg, model_arch)
+  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/src/core/utils.py", line 469, in load_model
+    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+  File "/home/mohammad.elaabaribao/.conda/envs/clean_env_Pytorch/lib/python3.9/site-packages/torch/nn/modules/module.py", line 2593, in load_state_dict
+    raise RuntimeError(
+RuntimeError: Error(s) in loading state_dict for WrappedUNet:
+	size mismatch for unet.enc1.block.0.block.0.weight: copying a param with shape torch.Size([64, 8, 3, 3]) from checkpoint, the shape in current model is torch.Size([64, 20, 3, 3]).

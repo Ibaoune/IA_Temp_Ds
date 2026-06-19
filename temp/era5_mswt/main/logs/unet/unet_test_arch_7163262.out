@@ -1,0 +1,155 @@
+Starting training for ../configs/unet/test_arch.yaml
+Using device: cuda
+Using device: cuda
+=== Starting training process for temp ===
+=== Loading datasets (src=era5, target=mswt) ===
+Loading temp file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/mswep/mswt_1979_2020.nc
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'time': 15341, 'lat': 220, 'lon': 220})
+   shape       : (15341, 220, 220)
+   lon range   : -20.950000762939453 → 0.9500091671943665
+   lat range   : 19.049999237060547 → 40.95000076293945
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'time': 15341, 'lat': 150, 'lon': 180})
+   shape       : (15341, 150, 180)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+TEMP shapes → train=(31, 150, 180), test=(15, 150, 180)
+Checking target time resolution...
+   [STATS] temp (train): mean=14.8792 degree_Celsius, min=-10.75, max=27.9375
+   [STATS] temp (test): mean=12.7518 degree_Celsius, min=-11.5, max=23.3125
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/z_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from z
+   [STATS] z_500: mean=57071.3 m**2 s**-2, min=52584.4, max=58855.7
+  → Extracting level 700 from z
+   [STATS] z_700: mean=30928.4 m**2 s**-2, min=28219.4, max=32241.1
+  → Extracting level 850 from z
+   [STATS] z_850: mean=15052.2 m**2 s**-2, min=12877.3, max=16400.8
+  → Extracting level 1000 from z
+   [STATS] z_1000: mean=1409.06 m**2 s**-2, min=-440.779, max=3261.26
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/q_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from q
+   [STATS] q_500: mean=0.000836864 kg kg**-1, min=5.29853e-06, max=0.00428146
+  → Extracting level 700 from q
+   [STATS] q_700: mean=0.00237055 kg kg**-1, min=1.0034e-05, max=0.0092932
+  → Extracting level 850 from q
+   [STATS] q_850: mean=0.00405037 kg kg**-1, min=3.87628e-05, max=0.0153089
+  → Extracting level 1000 from q
+   [STATS] q_1000: mean=0.00688989 kg kg**-1, min=0.000646486, max=0.0169177
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/t_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from t
+   [STATS] t_500: mean=-11.6073 degree_Celsius, min=-34.14, max=-2.5969
+  → Extracting level 700 from t
+   [STATS] t_700: mean=6.27368 degree_Celsius, min=-14.8746, max=17.1606
+  → Extracting level 850 from t
+   [STATS] t_850: mean=15.7124 degree_Celsius, min=-5.07218, max=32.7216
+  → Extracting level 1000 from t
+   [STATS] t_1000: mean=15.7124 degree_Celsius, min=-5.07218, max=32.7216
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/u_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from u
+   [STATS] u_500: mean=7.64865 m s**-1, min=-25.3612, max=43.7168
+  → Extracting level 700 from u
+   [STATS] u_700: mean=3.40907 m s**-1, min=-23.5915, max=31.2433
+  → Extracting level 850 from u
+   [STATS] u_850: mean=-0.359357 m s**-1, min=-25.8829, max=24.4057
+  → Extracting level 1000 from u
+   [STATS] u_1000: mean=-1.52856 m s**-1, min=-15.5505, max=15.6151
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/v_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from v
+   [STATS] v_500: mean=0.0542307 m s**-1, min=-43.2003, max=34.8773
+  → Extracting level 700 from v
+   [STATS] v_700: mean=-0.0236142 m s**-1, min=-29.8584, max=29.1058
+  → Extracting level 850 from v
+   [STATS] v_850: mean=-1.07582 m s**-1, min=-20.0909, max=27.0605
+  → Extracting level 1000 from v
+   [STATS] v_1000: mean=-2.3819 m s**-1, min=-20.2784, max=19.7384
+Checking time resolution...
+Predictor Shape (X): (381, 20, 8, 10)
+Target Train Shape (y_train): torch.Size([31, 150, 180])
+Target Test Shape (y_test): torch.Size([15, 150, 180])
+=== Finished loading datasets ===
+=== Preprocessing data ===
+Applying normalization mode: gridbox
+Normalization done.
+--- Processing temp (train) ---
+train raw [degree_Celsius] → min=-10.75, max=27.94, mean=14.88
+  Units already in Celsius → skipping conversion
+train converted [C] → min=-10.75, max=27.94, mean=14.88
+--- Processing temp (test) ---
+test raw [degree_Celsius] → min=-11.5, max=23.31, mean=12.75
+  Units already in Celsius → skipping conversion
+test converted [C] → min=-11.5, max=23.31, mean=12.75
+=== Preprocessing complete ===
+Initializing model for training...
+
+----------- Machine Features -----------
+ OS: Linux 4.18.0-553.124.1.el8_10.0.2.x86_64
+ CPU: x86_64 (Unknown (psutil missing) cores)
+ RAM: Unknown (psutil missing) GB
+ GPU 0: NVIDIA A100-SXM4-80GB (79.25 GB)
+----------------------------------------
+Epoch 1/2 - Duration: 0.45s - Loss: 35.5646
+Estimated training process duration: 00:00
+
+Best model updated at epoch 1 
+Epoch 2/2 - Duration: 0.11s - Loss: 11.9543
+Best model updated at epoch 2 
+
+=========== Training Summary ===========
+Best epoch         : 2
+Best monitored loss: 11.9543
+LAST model saved   : /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/results_test/unet_temperature/models/unet1_temp_last.pth
+BEST model saved   : /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/results_test/unet_temperature/models/unet1_temp_best.pth
+Results directory  : /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/results_test/unet_temperature
+========================================
+Finished training for ../configs/unet/test_arch.yaml

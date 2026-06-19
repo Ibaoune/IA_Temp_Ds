@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/main/train.py", line 119, in <module>
+    main()
+  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/main/train.py", line 31, in main
+    cfg = load_config(train_mode=True, path=cfg_path)
+  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/main/src/core/config.py", line 344, in load_config
+    return Config(cfg_dict, train_mode=train_mode)
+  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/main/src/core/config.py", line 98, in __init__
+    raise ValueError(
+ValueError: Unsupported model_type 'unet2'. Expected one of: ['cnn', 'glm', 'unet', 'unet1']
