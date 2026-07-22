@@ -279,6 +279,18 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
     elif cfg.loss_type == "gaussian":
         from src.core.losses import GaussianLoss
         criterion = GaussianLoss()
+    elif cfg.loss_type == "xiong_continuity":
+        from src.core.losses import XiongContinuityLoss
+        criterion = XiongContinuityLoss(
+            weight=cfg.xiong_continuity_weight,
+            eps=cfg.xiong_eps,
+        )
+    elif cfg.loss_type == "xiong_directional":
+        from src.core.losses import XiongDirectionalLoss
+        criterion = XiongDirectionalLoss(
+            weight=cfg.xiong_directional_weight,
+            eps=cfg.xiong_eps,
+        )
     else:
         raise ValueError(f"Unsupported loss type: {cfg.loss_type}")
 

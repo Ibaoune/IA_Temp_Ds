@@ -12,6 +12,7 @@
 import yaml
 import torch
 import os
+import math
 from pathlib import Path
 
 
@@ -135,6 +136,57 @@ class Config:
         self.batch_size = _to_int(tr.get("batch_size"))
         self.loss_type = str(tr.get("loss_type"))
         self.norm_mode = str(tr.get("norm_mode"))
+
+        xiong = tr.get("xiong") or {}
+        if not isinstance(xiong, dict):
+            raise ValueError("training.xiong must be a YAML mapping.")
+
+        def _read_xiong_parameter(name, default):
+            raw_value = xiong.get(name, default)
+            try:
+                value = _to_float(raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"training.xiong.{name} must be a real number; "
+                    f"got {raw_value!r}."
+                ) from exc
+
+            if value is None or not math.isfinite(value):
+                raise ValueError(
+                    f"training.xiong.{name} must be finite; got {raw_value!r}."
+                )
+            return value
+
+        self.xiong_continuity_weight = _read_xiong_parameter(
+            "continuity_weight", 1.0e-4
+        )
+        self.xiong_directional_weight = _read_xiong_parameter(
+            "directional_weight", 1.0e-4
+        )
+        self.xiong_eps = _read_xiong_parameter("eps", 1.0e-8)
+
+        if self.xiong_continuity_weight < 0:
+            raise ValueError(
+                "training.xiong.continuity_weight must be >= 0; "
+                f"got {self.xiong_continuity_weight}."
+            )
+        if self.xiong_directional_weight < 0:
+            raise ValueError(
+                "training.xiong.directional_weight must be >= 0; "
+                f"got {self.xiong_directional_weight}."
+            )
+        if self.xiong_eps <= 0:
+            raise ValueError(
+                f"training.xiong.eps must be > 0; got {self.xiong_eps}."
+            )
+
+        xiong_loss_types = {"xiong_continuity", "xiong_directional"}
+        if self.loss_type in xiong_loss_types and self.variable.lower() != "temp":
+            raise ValueError(
+                f"loss_type='{self.loss_type}' is only supported for "
+                "general.variable='temp'; Xiong temperature constraints "
+                f"cannot be used with variable='{self.variable}'."
+            )
 
         es = tr.get("early_stopping", {})
         self.early_stopping_enable = _to_bool(es.get("enable", False))
@@ -364,4 +416,3 @@ def load_config(train_mode=True, path="config.yaml"):
     with open(path, "r") as f:
         cfg_dict = yaml.safe_load(f)
     return Config(cfg_dict, train_mode=train_mode)
-

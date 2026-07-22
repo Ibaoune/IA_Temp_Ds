@@ -9,6 +9,7 @@ temp/results_test_app1/
 temp/results_test_app2/
 temp/exploration/
 temp/postproc/mean/QQ/
+temp/postproc/
 temp/prediction/
 quick_hist_summary.csv
 glm_pixel_explanation.csv
