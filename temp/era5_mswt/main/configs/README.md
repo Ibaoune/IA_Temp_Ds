@@ -1,6 +1,35 @@
 # Experiment Configuration Overview
 
-This document provides a comprehensive overview of the 17 experimental configurations that have been successfully trained, evaluated, and postprocessed.
+This document distinguishes the 17 completed classical experiments from the
+Physics-Informed AI configurations defined for separate experiments.
+
+## Configuration Families
+
+The classical, mainly data-driven or probabilistic configurations remain
+organized by model family:
+
+```text
+configs/
+├── cnn/
+├── glm/
+└── unet/
+```
+
+Configurations that add physical or structural constraints are grouped
+separately:
+
+```text
+configs/phy_ai/
+├── cnn/
+├── glm/
+└── unet/
+    ├── config_arch1_xiong_continuity.yaml
+    └── config_arch1_xiong_directional.yaml
+```
+
+Currently, `phy_ai/unet/` contains the two Xiong-inspired experiments.
+`phy_ai/cnn/` and `phy_ai/glm/` are reserved for future Physics-Informed CNN
+and GLM experiments; they do not contain model configurations yet.
 
 ## Baseline Models
 
@@ -68,6 +97,37 @@ The campaign follows a systematic ablation and hyperparameter tuning strategy to
 **Hypothesis being tested:** Gaussian loss allows the model to capture heteroscedastic uncertainty better than MSE, improving performance on extreme temperature variations.
 
 **Expected impact:** MSE might yield a slightly better pure RMSE, but Gaussian should heavily outperform on extreme distribution metrics (B02, B98, WAMS).
+
+### Physics-Informed AI Experiments
+
+The Physics-Informed configurations use the standard `UNet1` architecture and
+add one structural constraint at a time:
+
+- `phy_ai/unet/config_arch1_xiong_continuity.yaml`
+  - Architecture: `UNet1`
+  - Loss: `xiong_continuity`
+  - Constraint: spatial continuity
+  - Output: deterministic, one channel
+- `phy_ai/unet/config_arch1_xiong_directional.yaml`
+  - Architecture: `UNet1`
+  - Loss: `xiong_directional`
+  - Constraint: directional consistency
+  - Output: deterministic, one channel
+
+The continuity and directional constraints are tested in separate experiments.
+They are not combined into a single loss.
+
+Run the experiments from the repository root:
+
+```bash
+cd temp/era5_mswt/main
+
+python train.py configs/phy_ai/unet/config_arch1_xiong_continuity.yaml
+python eval.py configs/phy_ai/unet/config_arch1_xiong_continuity.yaml
+
+python train.py configs/phy_ai/unet/config_arch1_xiong_directional.yaml
+python eval.py configs/phy_ai/unet/config_arch1_xiong_directional.yaml
+```
 
 ### Optimization Experiments
 
@@ -140,7 +200,7 @@ The overall strategy of this campaign is structured as a hierarchical grid searc
 
 ---
 
-## Completed Experiments Summary Table
+## Completed Classical Experiments Summary Table
 
 | Experiment | Category | Modified Parameter | Objective | Postprocessed |
 | ---------- | -------- | ------------------ | --------- | ------------- |

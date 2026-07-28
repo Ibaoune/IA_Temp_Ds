@@ -11,15 +11,20 @@ ERA5 -> MSWT
 ## Structure utile
 
 ```text
-temp/main/
+temp/era5_mswt/main/
 ├── configs/
+│   ├── cnn/
+│   ├── glm/
 │   ├── unet/
 │   │   ├── config_arch.yaml
-│   │   ├── test_arch.yaml
 │   │   ├── config_arch1.yaml
-│   │   └── test_arch1.yaml
-│   ├── cnn/
-│   └── glm/
+│   │   └── autres configurations classiques
+│   └── phy_ai/
+│       ├── cnn/
+│       ├── glm/
+│       └── unet/
+│           ├── config_arch1_xiong_continuity.yaml
+│           └── config_arch1_xiong_directional.yaml
 ├── scripts/
 │   ├── job_cpu.sh
 │   └── job_gpu.sh
@@ -30,23 +35,32 @@ temp/main/
 
 ## Configurations U-Net
 
-Les configs U-Net sont regroupees dans :
+Les configurations U-Net classiques sont regroupees dans :
 
 ```text
-temp/main/configs/unet/
+temp/era5_mswt/main/configs/unet/
 ```
 
 Correspondance principale :
 
 ```text
-model_type: "unet"  -> temp/main/configs/unet/config_arch.yaml
-model_type: "unet1" -> temp/main/configs/unet/config_arch1.yaml
+model_type: "unet"  -> temp/era5_mswt/main/configs/unet/config_arch.yaml
+model_type: "unet1" -> temp/era5_mswt/main/configs/unet/config_arch1.yaml
 ```
+
+Les configurations U-Net avec contraintes physiques ou structurelles sont
+regroupees dans :
+
+```text
+temp/era5_mswt/main/configs/phy_ai/unet/
+```
+
+Voir `configs/README.md` pour les expériences Xiong et leurs commandes.
 
 Pour les jobs de test/validation utilises actuellement :
 
 ```text
-temp/main/configs/unet/test_arch1.yaml
+temp/era5_mswt/main/configs/unet/test_arch1.yaml
 ```
 
 ## Approche supportee
@@ -80,13 +94,13 @@ Les niveaux verticaux utilises par les configs actuelles sont :
 Depuis la racine du projet :
 
 ```bash
-python temp/main/train.py temp/main/configs/unet/test_arch1.yaml
+python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
 ```
 
 Avec l'environnement local Windows :
 
 ```powershell
-.\climate_env\Scripts\python.exe temp/main/train.py temp/main/configs/unet/test_arch1.yaml
+.\climate_env\Scripts\python.exe temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
 ```
 
 ## Lancer l'evaluation
@@ -94,13 +108,13 @@ Avec l'environnement local Windows :
 Depuis la racine du projet :
 
 ```bash
-python temp/main/eval.py temp/main/configs/unet/test_arch1.yaml
+python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
 ```
 
 Avec l'environnement local Windows :
 
 ```powershell
-.\climate_env\Scripts\python.exe temp/main/eval.py temp/main/configs/unet/test_arch1.yaml
+.\climate_env\Scripts\python.exe temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
 ```
 
 ## Jobs SLURM
@@ -108,25 +122,25 @@ Avec l'environnement local Windows :
 CPU :
 
 ```bash
-bash temp/main/scripts/job_cpu.sh
+bash temp/era5_mswt/main/scripts/job_cpu.sh
 ```
 
 GPU :
 
 ```bash
-bash temp/main/scripts/job_gpu.sh
+bash temp/era5_mswt/main/scripts/job_gpu.sh
 ```
 
 Les deux scripts utilisent par defaut :
 
 ```text
-temp/main/configs/unet/test_arch1.yaml
+temp/era5_mswt/main/configs/unet/test_arch1.yaml
 ```
 
 On peut changer la config sans modifier le script :
 
 ```bash
-MAIN_CONFIG=temp/main/configs/unet/test_arch1.yaml bash temp/main/scripts/job_cpu.sh
+MAIN_CONFIG=temp/era5_mswt/main/configs/unet/test_arch1.yaml bash temp/era5_mswt/main/scripts/job_cpu.sh
 ```
 
 ## Sorties attendues
@@ -152,4 +166,4 @@ La reorganisation des configs ne change donc pas les noms des modeles sauvegarde
 
 - Les noms d'experiences restent definis dans les fichiers YAML.
 - `model_type` continue a selectionner l'architecture du modele.
-- La resolution automatique des configs U-Net est geree par `resolve_model_config_path` dans `temp/main/src/core/config.py`.
+- La resolution automatique des configs U-Net est geree par `resolve_model_config_path` dans `temp/era5_mswt/main/src/core/config.py`.

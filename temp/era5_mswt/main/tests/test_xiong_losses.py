@@ -19,10 +19,15 @@ from src.core.losses import (
 
 
 MAIN_DIR = Path(__file__).resolve().parents[1]
-CONFIG_DIR = MAIN_DIR / "configs" / "unet"
+CLASSIC_UNET_CONFIG_DIR = MAIN_DIR / "configs" / "unet"
+PHY_AI_UNET_CONFIG_DIR = MAIN_DIR / "configs" / "phy_ai" / "unet"
 XIONG_CONFIGS = {
-    "xiong_continuity": CONFIG_DIR / "config_arch1_xiong_continuity.yaml",
-    "xiong_directional": CONFIG_DIR / "config_arch1_xiong_directional.yaml",
+    "xiong_continuity": (
+        PHY_AI_UNET_CONFIG_DIR / "config_arch1_xiong_continuity.yaml"
+    ),
+    "xiong_directional": (
+        PHY_AI_UNET_CONFIG_DIR / "config_arch1_xiong_directional.yaml"
+    ),
 }
 EPS = 1.0e-8
 
@@ -268,7 +273,9 @@ def test_xiong_yaml_is_loaded_with_float_parameters(loss_type, tmp_path):
 
 
 def test_old_config_gets_backward_compatible_xiong_defaults(tmp_path):
-    cfg, _ = _load_config_with_temp_results(CONFIG_DIR / "config_arch1.yaml", tmp_path)
+    cfg, _ = _load_config_with_temp_results(
+        CLASSIC_UNET_CONFIG_DIR / "config_arch1.yaml", tmp_path
+    )
 
     assert cfg.loss_type == "gaussian"
     assert cfg.xiong_continuity_weight == pytest.approx(1.0e-4)
