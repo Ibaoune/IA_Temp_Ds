@@ -619,14 +619,11 @@ def test_one_epoch_train_validate_save_reload_and_deterministic_netcdf(
         lambda *args, **kwargs: None,
     )
 
-    x_test = torch.rand((2, 2, 4, 5))
-    y_test = torch.rand((2, 1, 4, 5))
+    x_test = torch.rand((1, 2, 4, 5))
+    y_test = torch.rand((1, 1, 4, 5))
     lon = np.linspace(-18.0, -17.0, 5)
     lat = np.linspace(21.0, 22.0, 4)
-    times = np.array(
-        ["2006-01-01", "2006-01-02"],
-        dtype="datetime64[D]",
-    )
+    times = np.array(["2006-01-01"], dtype="datetime64[D]")
 
     evaluation.evaluate_and_save(cfg, x_test, y_test, lon, lat, times)
 
@@ -640,4 +637,4 @@ def test_one_epoch_train_validate_save_reload_and_deterministic_netcdf(
     with xr.open_dataset(output_path) as dataset:
         assert set(dataset.data_vars) == {"air_temperature"}
         assert "log_variance" not in dataset
-        assert dataset["air_temperature"].shape == (2, 4, 5)
+        assert dataset["air_temperature"].shape == (1, 4, 5)

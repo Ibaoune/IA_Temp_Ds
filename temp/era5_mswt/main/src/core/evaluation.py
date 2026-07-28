@@ -228,7 +228,12 @@ def evaluate_and_save(cfg, x_test, y_test, lon, lat, time):
 # ----------------------------------
 # Ground truth dataset
 # ----------------------------------
-    y_test_np = y_test.squeeze().cpu().numpy()
+    if y_test.ndim != 4 or y_test.shape[1] != 1:
+        raise ValueError(
+            "Evaluation expects y_test with shape (B, 1, H, W); "
+            f"got {tuple(y_test.shape)}."
+        )
+    y_test_np = y_test[:, 0, :, :].cpu().numpy()
     y_test_ds = xr.Dataset(
         {
             "air_temperature": (["time", "lat", "lon"], y_test_np),
