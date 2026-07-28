@@ -24,7 +24,8 @@ temp/era5_mswt/main/
 │       ├── glm/
 │       └── unet/
 │           ├── config_arch1_xiong_continuity.yaml
-│           └── config_arch1_xiong_directional.yaml
+│           ├── config_arch1_xiong_directional.yaml
+│           └── config_arch1_serifi_gradient.yaml
 ├── scripts/
 │   ├── job_cpu.sh
 │   └── job_gpu.sh
@@ -55,7 +56,8 @@ regroupees dans :
 temp/era5_mswt/main/configs/phy_ai/unet/
 ```
 
-Voir `configs/README.md` pour les expériences Xiong et leurs commandes.
+Voir `configs/README.md` pour les expériences Xiong et Serifi et leurs
+commandes.
 
 Pour les jobs de test/validation utilises actuellement :
 

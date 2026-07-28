@@ -188,6 +188,33 @@ class Config:
                 f"cannot be used with variable='{self.variable}'."
             )
 
+        serifi = tr.get("serifi")
+        if serifi is None:
+            serifi = {}
+        if not isinstance(serifi, dict):
+            raise ValueError("training.serifi must be a YAML mapping.")
+
+        raw_serifi_gradient_weight = serifi.get("gradient_weight", 1.0)
+        try:
+            self.serifi_gradient_weight = _to_float(
+                raw_serifi_gradient_weight
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "training.serifi.gradient_weight must be a real number; "
+                f"got {raw_serifi_gradient_weight!r}."
+            ) from exc
+
+        if (
+            self.serifi_gradient_weight is None
+            or not math.isfinite(self.serifi_gradient_weight)
+            or self.serifi_gradient_weight < 0
+        ):
+            raise ValueError(
+                "training.serifi.gradient_weight must be finite and >= 0; "
+                f"got {raw_serifi_gradient_weight!r}."
+            )
+
         es = tr.get("early_stopping", {})
         self.early_stopping_enable = _to_bool(es.get("enable", False))
         self.early_stopping_max = _to_int(es.get("max", 15))

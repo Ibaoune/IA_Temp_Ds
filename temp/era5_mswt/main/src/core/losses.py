@@ -283,3 +283,156 @@ class XiongDirectionalLoss(nn.Module):
             )
 
         return loss
+
+
+def _validate_serifi_fields(prediction, target):
+    """Validate scalar spatial fields used by :class:`SerifiGradientLoss`."""
+    if not torch.is_tensor(prediction) or not torch.is_tensor(target):
+        raise TypeError("prediction and target must both be PyTorch tensors.")
+
+    if prediction.shape != target.shape:
+        raise ValueError(
+            "prediction and target must have the same shape; "
+            f"got prediction={tuple(prediction.shape)} "
+            f"and target={tuple(target.shape)}."
+        )
+
+    if prediction.ndim != 4:
+        raise ValueError(
+            "SerifiGradientLoss expects four-dimensional fields with shape "
+            f"(B, 1, H, W); got {prediction.ndim} dimensions."
+        )
+
+    if prediction.shape[0] < 1:
+        raise ValueError("SerifiGradientLoss requires a non-empty batch (B >= 1).")
+
+    if prediction.shape[1] != 1:
+        raise ValueError(
+            "SerifiGradientLoss expects exactly one scalar-field channel; "
+            f"got C={prediction.shape[1]}."
+        )
+
+    height, width = prediction.shape[-2:]
+    if height < 2 or width < 2:
+        raise ValueError(
+            "SerifiGradientLoss requires H >= 2 and W >= 2; "
+            f"got H={height} and W={width}."
+        )
+
+    if prediction.device != target.device:
+        raise ValueError(
+            "prediction and target must be on the same device; "
+            f"got prediction={prediction.device} and target={target.device}."
+        )
+
+    if prediction.dtype != target.dtype:
+        raise ValueError(
+            "prediction and target must have the same dtype; "
+            f"got prediction={prediction.dtype} and target={target.dtype}."
+        )
+
+    if not prediction.is_floating_point() or not target.is_floating_point():
+        raise TypeError("SerifiGradientLoss requires floating-point tensors.")
+
+    if not bool(torch.isfinite(prediction).all()):
+        raise ValueError("prediction contains NaN or infinite values.")
+
+    if not bool(torch.isfinite(target).all()):
+        raise ValueError("target contains NaN or infinite values.")
+
+
+def _validate_serifi_gradient_weight(gradient_weight):
+    """Convert and validate the Serifi spatial-gradient multiplier."""
+    try:
+        gradient_weight = float(gradient_weight)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "SerifiGradientLoss gradient_weight must be a real number; "
+            f"got {gradient_weight!r}."
+        ) from exc
+
+    if not math.isfinite(gradient_weight) or gradient_weight < 0:
+        raise ValueError(
+            "SerifiGradientLoss gradient_weight must be finite and >= 0; "
+            f"got {gradient_weight}."
+        )
+
+    return gradient_weight
+
+
+def _serifi_computation_fields(prediction, target):
+    """Accumulate low-precision inputs in float32 on their original device."""
+    if prediction.dtype in {torch.float16, torch.bfloat16}:
+        return prediction.float(), target.float()
+    return prediction, target
+
+
+class SerifiGradientLoss(nn.Module):
+    r"""L1 data loss with the spatial-gradient constraint of Serifi et al.
+
+    For scalar fields with shape ``(B, 1, H, W)``, forward differences are
+
+    ``dx(F) = F[..., :, 1:] - F[..., :, :-1]``
+    ``dy(F) = F[..., 1:, :] - F[..., :-1, :]``.
+
+    This module implements the local, axis-wise loss
+
+    ``L_data = mean(|prediction - target|)``
+    ``L_grad,x = mean(|dx(prediction) - dx(target)|)``
+    ``L_grad,y = mean(|dy(prediction) - dy(target)|)``
+    ``L = L_data + gradient_weight * (L_grad,x + L_grad,y)``.
+
+    The two spatial derivatives are compared locally and averaged separately;
+    this is neither a temporal-gradient term nor a global conservation law.
+
+    Reference
+    ---------
+    Agon Serifi, Tobias Günther, and Nikolina Ban (2021), "Spatio-Temporal
+    Downscaling of Climate Data Using Convolutional and Error-Predicting
+    Neural Networks", Frontiers in Climate, 3:656479.
+    DOI: 10.3389/fclim.2021.656479.
+
+    Parameters
+    ----------
+    gradient_weight : float, default=1.0
+        Non-negative multiplier of the summed x/y spatial-gradient losses.
+    """
+
+    def __init__(self, gradient_weight=1.0):
+        super().__init__()
+        self.gradient_weight = _validate_serifi_gradient_weight(gradient_weight)
+
+    def forward(self, prediction, target):
+        _validate_serifi_fields(prediction, target)
+        prediction_compute, target_compute = _serifi_computation_fields(
+            prediction, target
+        )
+
+        data_loss = torch.mean(torch.abs(prediction_compute - target_compute))
+
+        pred_dx = (
+            prediction_compute[:, :, :, 1:]
+            - prediction_compute[:, :, :, :-1]
+        )
+        true_dx = target_compute[:, :, :, 1:] - target_compute[:, :, :, :-1]
+
+        pred_dy = (
+            prediction_compute[:, :, 1:, :]
+            - prediction_compute[:, :, :-1, :]
+        )
+        true_dy = target_compute[:, :, 1:, :] - target_compute[:, :, :-1, :]
+
+        gradient_x_loss = torch.mean(torch.abs(pred_dx - true_dx))
+        gradient_y_loss = torch.mean(torch.abs(pred_dy - true_dy))
+
+        loss = (
+            data_loss
+            + self.gradient_weight * (gradient_x_loss + gradient_y_loss)
+        ).to(dtype=prediction.dtype)
+
+        if not bool(torch.isfinite(loss)):
+            raise FloatingPointError(
+                "SerifiGradientLoss produced a NaN or infinite value."
+            )
+
+        return loss

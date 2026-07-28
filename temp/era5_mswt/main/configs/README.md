@@ -24,10 +24,13 @@ configs/phy_ai/
 ├── glm/
 └── unet/
     ├── config_arch1_xiong_continuity.yaml
-    └── config_arch1_xiong_directional.yaml
+    ├── config_arch1_xiong_directional.yaml
+    └── config_arch1_serifi_gradient.yaml
 ```
 
-Currently, `phy_ai/unet/` contains the two Xiong-inspired experiments.
+Currently, `phy_ai/unet/` contains two Xiong-inspired experiments and one
+Serifi spatial-gradient experiment. The three constraints are evaluated in
+independent runs.
 `phy_ai/cnn/` and `phy_ai/glm/` are reserved for future Physics-Informed CNN
 and GLM experiments; they do not contain model configurations yet.
 
@@ -113,9 +116,34 @@ add one structural constraint at a time:
   - Loss: `xiong_directional`
   - Constraint: directional consistency
   - Output: deterministic, one channel
+- `phy_ai/unet/config_arch1_serifi_gradient.yaml`
+  - Architecture: `UNet1`
+  - Loss: `serifi_gradient`
+  - Data term: pointwise L1
+  - Constraint: local L1 agreement of forward spatial differences along x
+    and y
+  - Gradient weight: `1.0`
+  - Output: deterministic, one channel
 
-The continuity and directional constraints are tested in separate experiments.
-They are not combined into a single loss.
+For prediction `P`, target `T`, and `lambda = 1.0`, the Serifi loss is:
+
+```text
+dx(F) = F[..., :, 1:] - F[..., :, :-1]
+dy(F) = F[..., 1:, :] - F[..., :-1, :]
+
+L = mean(|P - T|)
+    + lambda * (mean(|dx(P) - dx(T)|) + mean(|dy(P) - dy(T)|))
+```
+
+This term preserves local spatial derivatives; it is not a conservation law
+and it does not include temporal gradients. The Xiong continuity, Xiong
+directional, and Serifi gradient constraints are always tested separately and
+are never combined in these configurations.
+
+Reference: Agon Serifi, Tobias Günther, and Nikolina Ban (2021),
+*Spatio-Temporal Downscaling of Climate Data Using Convolutional and
+Error-Predicting Neural Networks*, *Frontiers in Climate*, 3:656479,
+DOI `10.3389/fclim.2021.656479`.
 
 Run the experiments from the repository root:
 
@@ -127,6 +155,9 @@ python eval.py configs/phy_ai/unet/config_arch1_xiong_continuity.yaml
 
 python train.py configs/phy_ai/unet/config_arch1_xiong_directional.yaml
 python eval.py configs/phy_ai/unet/config_arch1_xiong_directional.yaml
+
+python train.py configs/phy_ai/unet/config_arch1_serifi_gradient.yaml
+python eval.py configs/phy_ai/unet/config_arch1_serifi_gradient.yaml
 ```
 
 ### Optimization Experiments

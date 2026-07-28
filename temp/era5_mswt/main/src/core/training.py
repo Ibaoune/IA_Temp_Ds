@@ -291,6 +291,11 @@ def train_model(cfg, x_train, y_train, lat_in=None, lon_in=None, lat_out=None, l
             weight=cfg.xiong_directional_weight,
             eps=cfg.xiong_eps,
         )
+    elif cfg.loss_type == "serifi_gradient":
+        from src.core.losses import SerifiGradientLoss
+        criterion = SerifiGradientLoss(
+            gradient_weight=cfg.serifi_gradient_weight,
+        )
     else:
         raise ValueError(f"Unsupported loss type: {cfg.loss_type}")
 
