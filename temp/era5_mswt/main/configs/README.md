@@ -21,18 +21,33 @@ separately:
 ```text
 configs/phy_ai/
 ├── cnn/
+│   ├── config_cnn1_xiong_continuity.yaml
+│   ├── config_cnn1_xiong_continuity_test.yaml
+│   ├── config_cnn1_xiong_directional.yaml
+│   ├── config_cnn1_xiong_directional_test.yaml
+│   ├── config_cnn1_serifi_gradient.yaml
+│   ├── config_cnn1_serifi_gradient_test.yaml
+│   ├── config_cnn10_xiong_continuity.yaml
+│   ├── config_cnn10_xiong_continuity_test.yaml
+│   ├── config_cnn10_xiong_directional.yaml
+│   ├── config_cnn10_xiong_directional_test.yaml
+│   ├── config_cnn10_serifi_gradient.yaml
+│   └── config_cnn10_serifi_gradient_test.yaml
 ├── glm/
 └── unet/
     ├── config_arch1_xiong_continuity.yaml
+    ├── config_arch1_xiong_continuity_test.yaml
     ├── config_arch1_xiong_directional.yaml
-    └── config_arch1_serifi_gradient.yaml
+    ├── config_arch1_xiong_directional_test.yaml
+    ├── config_arch1_serifi_gradient.yaml
+    └── config_arch1_serifi_gradient_test.yaml
 ```
 
-Currently, `phy_ai/unet/` contains two Xiong-inspired experiments and one
-Serifi spatial-gradient experiment. The three constraints are evaluated in
-independent runs.
-`phy_ai/cnn/` and `phy_ai/glm/` are reserved for future Physics-Informed CNN
-and GLM experiments; they do not contain model configurations yet.
+`phy_ai/cnn/` contains the same three independent constraints for both CNN1
+and CNN10, plus a reduced `_test` variant of every configuration.
+`phy_ai/unet/` contains their UNet1 counterparts. `phy_ai/glm/` is reserved
+for future Physics-Informed GLM experiments and does not contain a model
+configuration yet.
 
 ## Baseline Models
 
@@ -103,8 +118,41 @@ The campaign follows a systematic ablation and hyperparameter tuning strategy to
 
 ### Physics-Informed AI Experiments
 
-The Physics-Informed configurations use the standard `UNet1` architecture and
-add one structural constraint at a time:
+The Physics-Informed configurations use the standard CNN1, CNN10, or UNet1
+architecture and add one structural constraint at a time.
+
+CNN configurations:
+
+- `phy_ai/cnn/config_cnn1_xiong_continuity.yaml`
+- `phy_ai/cnn/config_cnn1_xiong_directional.yaml`
+- `phy_ai/cnn/config_cnn1_serifi_gradient.yaml`
+- `phy_ai/cnn/config_cnn10_xiong_continuity.yaml`
+- `phy_ai/cnn/config_cnn10_xiong_directional.yaml`
+- `phy_ai/cnn/config_cnn10_serifi_gradient.yaml`
+
+Reduced CNN test configurations:
+
+- `phy_ai/cnn/config_cnn1_xiong_continuity_test.yaml`
+- `phy_ai/cnn/config_cnn1_xiong_directional_test.yaml`
+- `phy_ai/cnn/config_cnn1_serifi_gradient_test.yaml`
+- `phy_ai/cnn/config_cnn10_xiong_continuity_test.yaml`
+- `phy_ai/cnn/config_cnn10_xiong_directional_test.yaml`
+- `phy_ai/cnn/config_cnn10_serifi_gradient_test.yaml`
+
+Each CNN configuration is deterministic and produces one output channel. It
+keeps the data, dates, optimizer, normalization, batch size, and other
+parameters of its corresponding classical CNN1 or CNN10 configuration. The
+three losses are never combined. The legacy `LR_scheduler` block is omitted;
+only the supported `scheduler` block is retained.
+
+Each `_test` configuration keeps the model and loss parameters of its full
+CNN counterpart, but uses 20 epochs, a batch size of 4, training over
+1980--1984, evaluation over 1985, disabled validation, and
+`./temp/results_test/`. The CNN-specific GroupNorm value (32) and validation
+percentage (0.1, inactive while validation is disabled) are preserved. These
+are reduced experiment configurations, not one-day smoke tests.
+
+UNet1 configurations:
 
 - `phy_ai/unet/config_arch1_xiong_continuity.yaml`
   - Architecture: `UNet1`
@@ -145,7 +193,16 @@ Reference: Agon Serifi, Tobias Günther, and Nikolina Ban (2021),
 Error-Predicting Neural Networks*, *Frontiers in Climate*, 3:656479,
 DOI `10.3389/fclim.2021.656479`.
 
-Run the experiments from the repository root:
+Run the CNN experiments from the repository root, so the active relative
+paths under `DATA1/` resolve correctly. Replace `<config>` with any of the six
+full or six reduced CNN filenames listed above:
+
+```bash
+python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/phy_ai/cnn/<config>
+python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/phy_ai/cnn/<config>
+```
+
+Run the UNet1 experiments from the `temp/era5_mswt/main` directory:
 
 ```bash
 cd temp/era5_mswt/main

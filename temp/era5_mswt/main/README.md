@@ -21,6 +21,12 @@ temp/era5_mswt/main/
 │   │   └── autres configurations classiques
 │   └── phy_ai/
 │       ├── cnn/
+│       │   ├── config_cnn1_xiong_continuity.yaml
+│       │   ├── config_cnn1_xiong_directional.yaml
+│       │   ├── config_cnn1_serifi_gradient.yaml
+│       │   ├── config_cnn10_xiong_continuity.yaml
+│       │   ├── config_cnn10_xiong_directional.yaml
+│       │   └── config_cnn10_serifi_gradient.yaml
 │       ├── glm/
 │       └── unet/
 │           ├── config_arch1_xiong_continuity.yaml
@@ -34,7 +40,7 @@ temp/era5_mswt/main/
 └── eval.py
 ```
 
-## Configurations U-Net
+## Configurations U-Net et CNN
 
 Les configurations U-Net classiques sont regroupees dans :
 
@@ -59,7 +65,28 @@ temp/era5_mswt/main/configs/phy_ai/unet/
 Voir `configs/README.md` pour les expériences Xiong et Serifi et leurs
 commandes.
 
-Pour les jobs de test/validation utilises actuellement :
+Les variantes Physics-Informed CNN1 et CNN10 sont regroupées dans :
+
+```text
+temp/era5_mswt/main/configs/phy_ai/cnn/
+```
+
+Elles déclinent séparément les losses `xiong_continuity`,
+`xiong_directional` et `serifi_gradient` pour les deux modes CNN.
+
+Chaque combinaison CNN/loss possède aussi une configuration réduite suffixée
+`_test.yaml`, par exemple :
+
+```text
+config_cnn1_xiong_continuity_test.yaml
+config_cnn10_xiong_continuity_test.yaml
+```
+
+Ces six variantes utilisent 20 époques, un batch de 4, l'entraînement sur
+1980--1984, l'évaluation sur 1985 et le dossier `./temp/results_test/`. Elles
+conservent les paramètres d'architecture propres à CNN1 ou CNN10.
+
+La configuration classique de test/validation reste disponible ici :
 
 ```text
 temp/era5_mswt/main/configs/unet/test_arch1.yaml
