@@ -1,181 +1,281 @@
-## Configuration tree
-
-```text
-configs/
-├── cnn/
-│   ├── config.yaml
-│   ├── config_bs32.yaml
-│   ├── config_cnn1.yaml
-│   ├── config_cnn1_mse.yaml
-│   ├── config_cnn10.yaml
-│   ├── config_cnn10_bs32.yaml
-│   ├── config_cnn10_mse.yaml
-│   ├── config_mse.yaml
-│   └── test.yaml
-└── phy_ai/
-    └── cnn/
-        ├── config_cnn1_xiong_continuity.yaml
-        ├── config_cnn1_xiong_continuity_test.yaml
-        ├── config_cnn1_xiong_directional.yaml
-        ├── config_cnn1_xiong_directional_test.yaml
-        ├── config_cnn1_serifi_gradient.yaml
-        ├── config_cnn1_serifi_gradient_test.yaml
-        ├── config_cnn10_xiong_continuity.yaml
-        ├── config_cnn10_xiong_continuity_test.yaml
-        ├── config_cnn10_xiong_directional.yaml
-        ├── config_cnn10_xiong_directional_test.yaml
-        ├── config_cnn10_serifi_gradient.yaml
-        └── config_cnn10_serifi_gradient_test.yaml
-```
-
-## Classical CNN experiments
-
-The classical configurations cover CNN1 and CNN10 with either Gaussian
-negative log-likelihood or MSE, plus batch-size variants. Gaussian experiments
-produce a mean and log-variance; deterministic MSE experiments produce one
-temperature channel. `test.yaml` is the reduced classical configuration.
-
 ## Physics/structure-informed experiments
 
-The `phy_ai/cnn/` configurations apply one loss at a time to deterministic,
-single-channel CNN1 or CNN10 predictions. Their scientific motivation comes
-from:
+The configurations in `configs/phy_ai/cnn/` add spatial-structure terms to
+deterministic, single-channel CNN1 and CNN10 predictions.
 
-- Minquan Xiong (2025), *Impact of Physical Constraints on Deep
-  Learning-Based Downscaling Prediction of Temperature*, Journal of
-  Meteorological Research, 39(4), 904-919.
-  [https://doi.org/10.1007/s13351-025-4061-1](https://doi.org/10.1007/s13351-025-4061-1)
-- Agon Serifi, Tobias Günther, and Nikolina Ban (2021), *Spatio-Temporal
-  Downscaling of Climate Data Using Convolutional and Error-Predicting Neural
-  Networks*, Frontiers in Climate, 3:656479.
-  [https://doi.org/10.3389/fclim.2021.656479](https://doi.org/10.3389/fclim.2021.656479)
+These experiments are described as **physics-guided** or
+**structure-informed**, rather than as Physics-Informed Neural Networks
+(PINNs). They do not impose a governing partial differential equation or a
+conservation law. Instead, they encourage the predicted temperature field to
+reproduce selected spatial properties of the reference field.
 
-The equations below describe the losses implemented in
-`src/core/losses.py`. Let \(P_{b,i,j}\) be the predicted temperature,
-\(T_{b,i,j}\) the target, \(B\) the batch size, and \(\varepsilon>0\) the
-numerical-stability constant.
+The implemented ideas are based on the following two articles.
 
-### Common RMSE data term for the Xiong losses
+---
 
-Both Xiong variants begin with:
+### 1. Xiong (2025): continuity and change-angle fidelity
 
-$$
-L_{\mathrm{RMSE}}
-=\sqrt{\frac{1}{BHW}\sum_{b=1}^{B}\sum_{i=1}^{H}\sum_{j=1}^{W}
-\left(P_{b,i,j}-T_{b,i,j}\right)^2+\varepsilon}.
-$$
+**Article**
 
-This term maintains pointwise predictive accuracy. Each Xiong constraint then
-adds a penalty measuring disagreement between a structural quantity computed
-from the predicted and reference fields.
+Minquan Xiong (2025), *Impact of Physical Constraints on Deep
+Learning-Based Downscaling Prediction of Temperature*, Journal of
+Meteorological Research, 39(4), 904–919.
 
-### Xiong spatial-continuity loss
+[https://doi.org/10.1007/s13351-025-4061-1](https://doi.org/10.1007/s13351-025-4061-1)
 
-For any field \(F\), define its spatial continuity energy as the sum of squared
-differences between horizontal and vertical neighbours:
+#### What the article does
 
-$$
-C(F_b)=
-\sum_{i=1}^{H-1}\sum_{j=1}^{W}\left(F_{b,i+1,j}-F_{b,i,j}\right)^2
-+\sum_{i=1}^{H}\sum_{j=1}^{W-1}\left(F_{b,i,j+1}-F_{b,i,j}\right)^2.
-$$
+Xiong applies a U-Net to downscale ECMWF daily maximum 2-m temperature from
+\(0.5^\circ\) to \(0.05^\circ\) over the lower reaches of the Yangtze River.
+The model uses physically meaningful predictors, including elevation, 10-m
+zonal and meridional winds, and the direct model output temperature.
 
-The implemented loss is:
+The article also introduces two hybrid losses. Both retain an RMSE data term
+and add one spatial penalty:
 
-$$
-L_{\mathrm{continuity}}
-=L_{\mathrm{RMSE}}
-+w_c\frac{1}{B}\sum_{b=1}^{B}\left|C(P_b)-C(T_b)\right|,
-$$
+1. a **continuity penalty**, based on squared differences between adjacent
+   temperature values;
+2. a **change-angle fidelity penalty**, based on two-argument arctangents of
+   adjacent temperature values.
 
-with `continuity_weight` \(w_c=10^{-4}\) in the supplied configurations.
-Following Xiong, its purpose is to constrain the spatial continuity/smoothness
-of the downscaled temperature field, discouraging unrealistic neighbouring-grid
-variations while retaining the data-fit objective. It matches the target's
-aggregate continuity energy; it is not a fluid continuity equation.
+The equations below reproduce the operations defined in the article, written
+with unambiguous \(H \times W\) notation. Let \(\widehat{T}_{i,j}\) denote the
+predicted temperature and \(T_{i,j}\) the reference temperature.
 
-### Xiong directional-consistency loss
+#### Continuity error
 
-For any field \(F\), define the aggregate neighbour direction:
+The continuity error compares the total squared neighbour-difference energy
+of the predicted and reference fields:
 
 $$
-D(F_b)=
+\begin{aligned}
+E_c =
+\Bigg|
+&\left[
 \sum_{i=1}^{H-1}\sum_{j=1}^{W}
-\operatorname{atan2}\!\left(F_{b,i+1,j},F_{b,i,j}\right)
-+\sum_{i=1}^{H}\sum_{j=1}^{W-1}
-\operatorname{atan2}\!\left(F_{b,i,j+1},F_{b,i,j}\right).
+\left(\widehat{T}_{i+1,j}-\widehat{T}_{i,j}\right)^2
++
+\sum_{i=1}^{H}\sum_{j=1}^{W-1}
+\left(\widehat{T}_{i,j+1}-\widehat{T}_{i,j}\right)^2
+\right] \\
+-&\left[
+\sum_{i=1}^{H-1}\sum_{j=1}^{W}
+\left(T_{i+1,j}-T_{i,j}\right)^2
++
+\sum_{i=1}^{H}\sum_{j=1}^{W-1}
+\left(T_{i,j+1}-T_{i,j}\right)^2
+\right]
+\Bigg|.
+\end{aligned}
 $$
 
-The implemented loss is:
+The hybrid continuity loss is:
 
 $$
-L_{\mathrm{directional}}
-=L_{\mathrm{RMSE}}
-+w_d\frac{1}{B}\sum_{b=1}^{B}\left|D(P_b)-D(T_b)\right|,
+L_c = \mathrm{RMSE} + w_c E_c.
 $$
 
-with `directional_weight` \(w_d=10^{-4}\). Its purpose is to make the
-prediction reproduce the target field's aggregate spatial direction changes,
-thereby improving directional consistency between neighbouring temperatures.
-The PyTorch implementation uses `atan2(neighbour, current)`.
+This term does not impose the fluid-mechanics continuity equation. It matches
+an aggregate measure of spatial smoothness between the prediction and the
+target. A prediction can therefore have a low continuity error when its total
+neighbour-difference energy is similar to the target, even if some local
+gradients differ.
 
-### Serifi spatial-gradient loss
+#### Change-angle fidelity error
 
-Define forward spatial differences:
-
-$$
-\Delta_xF_{b,i,j}=F_{b,i,j+1}-F_{b,i,j},\qquad
-\Delta_yF_{b,i,j}=F_{b,i+1,j}-F_{b,i,j}.
-$$
-
-The three averaged terms are:
+The article defines a directional or change-angle quantity from adjacent
+temperature values. In the implementation, the two-argument arctangent is
+evaluated as `atan2(neighbour, current)`:
 
 $$
-L_{\mathrm{data}}=\operatorname{mean}|P-T|,
+\begin{aligned}
+E_d =
+\Bigg|
+&\left[
+\sum_{i=1}^{H-1}\sum_{j=1}^{W}
+\operatorname{atan2}
+\left(\widehat{T}_{i+1,j},\widehat{T}_{i,j}\right)
++
+\sum_{i=1}^{H}\sum_{j=1}^{W-1}
+\operatorname{atan2}
+\left(\widehat{T}_{i,j+1},\widehat{T}_{i,j}\right)
+\right] \\
+-&\left[
+\sum_{i=1}^{H-1}\sum_{j=1}^{W}
+\operatorname{atan2}
+\left(T_{i+1,j},T_{i,j}\right)
++
+\sum_{i=1}^{H}\sum_{j=1}^{W-1}
+\operatorname{atan2}
+\left(T_{i,j+1},T_{i,j}\right)
+\right]
+\Bigg|.
+\end{aligned}
 $$
 
-$$
-L_{\nabla x}=\operatorname{mean}|\Delta_xP-\Delta_xT|,\qquad
-L_{\nabla y}=\operatorname{mean}|\Delta_yP-\Delta_yT|.
-$$
-
-The implemented loss is:
+The hybrid directional loss is:
 
 $$
-L_{\mathrm{Serifi}}
-=L_{\mathrm{data}}+\lambda\left(L_{\nabla x}+L_{\nabla y}\right),
+L_d = \mathrm{RMSE} + w_d E_d.
 $$
 
-with `gradient_weight` \(\lambda=1\) in the supplied configurations. Serifi
-et al. combine an \(L_1\) value loss with a gradient loss because CNN outputs
-tend to be overly smooth. Penalizing derivative errors helps reconstruct sharp,
-high-frequency spatial details. This implementation uses spatial gradients
-only; it does not include temporal gradients or impose a conservation law.
+This is the change-angle definition used by Xiong. It should not be confused
+with the standard orientation of a finite-difference gradient vector,
+\(\operatorname{atan2}(\partial_y T,\partial_x T)\).
+
+#### Adaptation in this repository
+
+The article defines the losses for individual two-dimensional fields. The
+repository adapts them to mini-batches by computing the structural error for
+each sample and averaging across the batch. A small numerical-stability
+constant is also used in the RMSE calculation.
+
+The supplied configurations use:
+
+```yaml
+continuity_weight: 1.0e-4
+directional_weight: 1.0e-4
+```
+
+These values are **project hyperparameters**. Xiong does not prescribe
+\(10^{-4}\) as a universal value; the article recommends selecting the weights
+experimentally according to validation performance.
+
+Associated configurations:
+
+```text
+configs/phy_ai/cnn/
+├── config_cnn1_xiong_continuity.yaml
+├── config_cnn1_xiong_continuity_test.yaml
+├── config_cnn1_xiong_directional.yaml
+├── config_cnn1_xiong_directional_test.yaml
+├── config_cnn10_xiong_continuity.yaml
+├── config_cnn10_xiong_continuity_test.yaml
+├── config_cnn10_xiong_directional.yaml
+└── config_cnn10_xiong_directional_test.yaml
+```
+
+---
+
+### 2. Serifi et al. (2021): value and gradient loss
+
+**Article**
+
+Agon Serifi, Tobias Günther, and Nikolina Ban (2021),
+*Spatio-Temporal Downscaling of Climate Data Using Convolutional and
+Error-Predicting Neural Networks*, Frontiers in Climate, 3, 656479.
+
+[https://doi.org/10.3389/fclim.2021.656479](https://doi.org/10.3389/fclim.2021.656479)
+
+#### What the article does
+
+Serifi et al. study spatial and temporal reconstruction of temperature and
+precipitation fields produced by the COSMO regional climate model. For the
+slowly varying temperature field, they use a residual-predicting network that
+learns a correction to a conventional interpolation baseline.
+
+The authors note that convolutional networks can generate overly smooth
+outputs. They therefore combine an \(L_1\) value error with a gradient error
+so that the network is penalized for errors in both field values and
+derivatives.
+
+#### Published loss equation
+
+Let \(Y\) denote the reference field and \(\widehat{Y}\) the prediction. The
+loss published in the article is:
+
+$$
+L\left(Y,\widehat{Y}\right)
+=
+\left\|Y-\widehat{Y}\right\|_1
++
+\lambda
+\left\|\nabla Y-\nabla\widehat{Y}\right\|_1.
+$$
+
+The first term preserves pointwise accuracy. The second compares derivatives
+and is intended to reduce over-smoothing and improve the reconstruction of
+higher-frequency details.
+
+Serifi et al. empirically use \(\lambda=1\) in their reported experiments.
+This value is also used as the default `gradient_weight` in the supplied
+project configurations.
+
+#### Adaptation in this repository
+
+The article writes the derivative term compactly with \(\nabla\). In this
+repository, the gradient is implemented with forward finite differences along
+the two spatial axes only. The horizontal and vertical gradient errors are
+averaged and added to the \(L_1\) data term.
+
+The current implementation therefore reproduces the spatial part of the
+published gradient-loss idea. It does not include temporal derivatives, a PDE
+residual, or a conservation constraint.
+
+Associated configurations:
+
+```text
+configs/phy_ai/cnn/
+├── config_cnn1_serifi_gradient.yaml
+├── config_cnn1_serifi_gradient_test.yaml
+├── config_cnn10_serifi_gradient.yaml
+└── config_cnn10_serifi_gradient_test.yaml
+```
+
+---
 
 ## Full and reduced configurations
 
-Each CNN1/loss and CNN10/loss combination has a full configuration and a
-matching `_test.yaml` configuration. The reduced variants preserve the model
-and loss settings but use 20 epochs, a batch size of 4, training over
-1980-1984, testing on 1985, disabled validation, and
-`./temp/results_test/`. They are intended for inexpensive integration runs,
-not as final scientific experiments.
+Each CNN/loss combination has:
 
-## Running an experiment
+- a full configuration for scientific experiments;
+- a matching `_test.yaml` configuration for inexpensive integration tests.
 
-Run from the repository root so the relative data paths resolve consistently:
+The reduced configurations preserve the selected architecture and loss but
+use shorter date ranges, fewer epochs, a smaller batch size, and a separate
+test-results directory. They should not be used to report final scientific
+results.
+
+Before launching a full experiment, verify:
+
+- input and target paths;
+- training, validation, and test periods;
+- result directories;
+- CNN architecture;
+- loss name and weight;
+- output channel count;
+- random seed.
+
+## Example commands
+
+Run from the repository root.
+
+### Xiong continuity loss
 
 ```bash
-python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/cnn/config_cnn1.yaml
-python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/cnn/config_cnn1.yaml
+python temp/era5_mswt/main/train.py \
+  temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_xiong_continuity.yaml
+
+python temp/era5_mswt/main/eval.py \
+  temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_xiong_continuity.yaml
 ```
 
-For a physics/structure-informed experiment:
+### Xiong directional loss
 
 ```bash
-python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_serifi_gradient.yaml
-python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_serifi_gradient.yaml
+python temp/era5_mswt/main/train.py \
+  temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_xiong_directional.yaml
+
+python temp/era5_mswt/main/eval.py \
+  temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_xiong_directional.yaml
 ```
 
-Before starting a full experiment, verify `paths`, date ranges, result
-directories, and the desired CNN mode in the selected YAML file.
+### Serifi gradient loss
+
+```bash
+python temp/era5_mswt/main/train.py \
+  temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_serifi_gradient.yaml
+
+python temp/era5_mswt/main/eval.py \
+  temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_serifi_gradient.yaml
+```
