@@ -1,198 +1,115 @@
-# Main pipeline
-
-Ce dossier contient la partie principale du pipeline de descente d'echelle statistique.
-
-L'etat actuel du projet documente une seule approche supportee :
+## Structure
 
 ```text
-ERA5 -> MSWT
-```
-
-## Structure utile
-
-```text
-temp/era5_mswt/main/
+main/
 ├── configs/
-│   ├── cnn/
-│   ├── glm/
-│   ├── unet/
-│   │   ├── config_arch.yaml
-│   │   ├── config_arch1.yaml
-│   │   └── autres configurations classiques
+│   ├── cnn/               # classical CNN1 and CNN10 configurations
 │   └── phy_ai/
-│       ├── cnn/
-│       │   ├── config_cnn1_xiong_continuity.yaml
-│       │   ├── config_cnn1_xiong_directional.yaml
-│       │   ├── config_cnn1_serifi_gradient.yaml
-│       │   ├── config_cnn10_xiong_continuity.yaml
-│       │   ├── config_cnn10_xiong_directional.yaml
-│       │   └── config_cnn10_serifi_gradient.yaml
-│       ├── glm/
-│       └── unet/
-│           ├── config_arch1_xiong_continuity.yaml
-│           ├── config_arch1_xiong_directional.yaml
-│           └── config_arch1_serifi_gradient.yaml
+│       └── cnn/           # Xiong and Serifi loss experiments
 ├── scripts/
 │   ├── job_cpu.sh
 │   └── job_gpu.sh
 ├── src/
+│   ├── core/              # configuration, data, training, evaluation, losses
+│   └── models/            # model definitions
+├── tests/
 ├── train.py
 └── eval.py
 ```
 
-## Configurations U-Net et CNN
+The complete configuration inventory and the mathematical definitions of the
+physics/structure-informed losses are in [configs/README.md](configs/README.md).
 
-Les configurations U-Net classiques sont regroupees dans :
+## Data and models
 
-```text
-temp/era5_mswt/main/configs/unet/
-```
-
-Correspondance principale :
+The configured mapping is:
 
 ```text
-model_type: "unet"  -> temp/era5_mswt/main/configs/unet/config_arch.yaml
-model_type: "unet1" -> temp/era5_mswt/main/configs/unet/config_arch1.yaml
+ERA5 predictors -> MSWT temperature
 ```
 
-Les configurations U-Net avec contraintes physiques ou structurelles sont
-regroupees dans :
+The active CNN configurations use ERA5 `z`, `q`, `t`, `u`, and `v` at 500,
+700, 850, and 1000 hPa. `general.model_type` selects `cnn1` or `cnn10`, while
+the `cnn.mode` field selects the matching CNN architecture.
 
-```text
-temp/era5_mswt/main/configs/phy_ai/unet/
-```
-
-Voir `configs/README.md` pour les expériences Xiong et Serifi et leurs
-commandes.
-
-Les variantes Physics-Informed CNN1 et CNN10 sont regroupées dans :
-
-```text
-temp/era5_mswt/main/configs/phy_ai/cnn/
-```
-
-Elles déclinent séparément les losses `xiong_continuity`,
-`xiong_directional` et `serifi_gradient` pour les deux modes CNN.
-
-Chaque combinaison CNN/loss possède aussi une configuration réduite suffixée
-`_test.yaml`, par exemple :
-
-```text
-config_cnn1_xiong_continuity_test.yaml
-config_cnn10_xiong_continuity_test.yaml
-```
-
-Ces six variantes utilisent 20 époques, un batch de 4, l'entraînement sur
-1980--1984, l'évaluation sur 1985 et le dossier `./temp/results_test/`. Elles
-conservent les paramètres d'architecture propres à CNN1 ou CNN10.
-
-La configuration classique de test/validation reste disponible ici :
-
-```text
-temp/era5_mswt/main/configs/unet/test_arch1.yaml
-```
-
-## Approche supportee
-
-### ERA5 -> MSWT
-
-Cette approche apprend la relation entre les predicteurs ERA5 et la cible MSWT.
+A typical configuration begins with:
 
 ```yaml
 general:
   src: "era5"
   target: "mswt"
   variable: "temp"
-  model_type: "unet1"
+  model_type: "cnn1"
+  variables: ["z", "q", "t", "u", "v"]
+  levels: [500, 700, 850, 1000]
+
+cnn:
+  mode: "cnn1"
 ```
 
-Les variables d'entree attendues sont :
+Update the paths under `paths` in the selected YAML file before running an
+experiment.
 
-```text
-z, q, t, u, v
-```
+## Classical configurations
 
-Les niveaux verticaux utilises par les configs actuelles sont :
+`configs/cnn/` contains Gaussian negative-log-likelihood and deterministic MSE
+experiments for CNN1 and CNN10, batch-size variants, and `test.yaml` for a
+reduced run. The former UNet and GLM experiments are intentionally not listed
+because their configuration folders were removed.
 
-```text
-500, 700, 850, 1000 hPa
-```
+## Physics/structure-informed configurations
 
-## Lancer l'entrainement
+`configs/phy_ai/cnn/` contains three independent loss experiments for each of
+CNN1 and CNN10:
 
-Depuis la racine du projet :
+- `xiong_continuity`: matches the spatial continuity energy of the prediction
+  and target.
+- `xiong_directional`: matches their aggregate neighbour-to-neighbour
+  directional quantity.
+- `serifi_gradient`: matches field values and local horizontal/vertical
+  gradients.
+
+Each full experiment also has a `_test.yaml` variant. The three constraints are
+tested separately and are never combined in the supplied configurations.
+
+## Training and evaluation
+
+Run from the repository root. Replace `<config>` with a filename in
+`configs/cnn/` or `configs/phy_ai/cnn/`.
+
+Classical example:
 
 ```bash
-python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
+python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/cnn/test.yaml
+python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/cnn/test.yaml
 ```
 
-Avec l'environnement local Windows :
-
-```powershell
-.\climate_env\Scripts\python.exe temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
-```
-
-## Lancer l'evaluation
-
-Depuis la racine du projet :
+Physics-informed example:
 
 ```bash
-python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
+python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn1_xiong_continuity_test.yaml
+python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn1_xiong_continuity_test.yaml
 ```
 
-Avec l'environnement local Windows :
+On Windows, the same commands can be run with the project interpreter, for
+example `./climate_env/Scripts/python.exe`, if that environment exists.
 
-```powershell
-.\climate_env\Scripts\python.exe temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
-```
+## SLURM jobs
 
-## Jobs SLURM
-
-CPU :
+The CPU and GPU launchers accept the configuration through `MAIN_CONFIG`.
+Always set it explicitly because historical defaults inside the scripts may
+refer to removed configuration paths:
 
 ```bash
-bash temp/era5_mswt/main/scripts/job_cpu.sh
+MAIN_CONFIG=temp/era5_mswt/main/configs/cnn/test.yaml \
+  bash temp/era5_mswt/main/scripts/job_cpu.sh
+
+MAIN_CONFIG=temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_serifi_gradient.yaml \
+  bash temp/era5_mswt/main/scripts/job_gpu.sh
 ```
 
-GPU :
+## Outputs
 
-```bash
-bash temp/era5_mswt/main/scripts/job_gpu.sh
-```
-
-Les deux scripts utilisent par defaut :
-
-```text
-temp/era5_mswt/main/configs/unet/test_arch1.yaml
-```
-
-On peut changer la config sans modifier le script :
-
-```bash
-MAIN_CONFIG=temp/era5_mswt/main/configs/unet/test_arch1.yaml bash temp/era5_mswt/main/scripts/job_cpu.sh
-```
-
-## Sorties attendues
-
-Les sorties principales sont placees sous le dossier de resultats configure dans le YAML :
-
-```text
-results_dir / experiment /
-├── models/
-├── output_data/
-└── plots/
-```
-
-Les noms de modeles restent bases sur :
-
-```text
-model_type + variable + tag
-```
-
-La reorganisation des configs ne change donc pas les noms des modeles sauvegardes.
-
-## Notes
-
-- Les noms d'experiences restent definis dans les fichiers YAML.
-- `model_type` continue a selectionner l'architecture du modele.
-- La resolution automatique des configs U-Net est geree par `resolve_model_config_path` dans `temp/era5_mswt/main/src/core/config.py`.
+Training and evaluation write under `paths.results_dir` using the configured
+experiment name. Typical outputs include saved models, prediction data,
+training histories, metrics, and plots.

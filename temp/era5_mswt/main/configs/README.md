@@ -1,311 +1,181 @@
-# Experiment Configuration Overview
-
-This document distinguishes the 17 completed classical experiments from the
-Physics-Informed AI configurations defined for separate experiments.
-
-## Configuration Families
-
-The classical, mainly data-driven or probabilistic configurations remain
-organized by model family:
+## Configuration tree
 
 ```text
 configs/
 ├── cnn/
-├── glm/
-└── unet/
+│   ├── config.yaml
+│   ├── config_bs32.yaml
+│   ├── config_cnn1.yaml
+│   ├── config_cnn1_mse.yaml
+│   ├── config_cnn10.yaml
+│   ├── config_cnn10_bs32.yaml
+│   ├── config_cnn10_mse.yaml
+│   ├── config_mse.yaml
+│   └── test.yaml
+└── phy_ai/
+    └── cnn/
+        ├── config_cnn1_xiong_continuity.yaml
+        ├── config_cnn1_xiong_continuity_test.yaml
+        ├── config_cnn1_xiong_directional.yaml
+        ├── config_cnn1_xiong_directional_test.yaml
+        ├── config_cnn1_serifi_gradient.yaml
+        ├── config_cnn1_serifi_gradient_test.yaml
+        ├── config_cnn10_xiong_continuity.yaml
+        ├── config_cnn10_xiong_continuity_test.yaml
+        ├── config_cnn10_xiong_directional.yaml
+        ├── config_cnn10_xiong_directional_test.yaml
+        ├── config_cnn10_serifi_gradient.yaml
+        └── config_cnn10_serifi_gradient_test.yaml
 ```
 
-Configurations that add physical or structural constraints are grouped
-separately:
+## Classical CNN experiments
 
-```text
-configs/phy_ai/
-├── cnn/
-│   ├── config_cnn1_xiong_continuity.yaml
-│   ├── config_cnn1_xiong_continuity_test.yaml
-│   ├── config_cnn1_xiong_directional.yaml
-│   ├── config_cnn1_xiong_directional_test.yaml
-│   ├── config_cnn1_serifi_gradient.yaml
-│   ├── config_cnn1_serifi_gradient_test.yaml
-│   ├── config_cnn10_xiong_continuity.yaml
-│   ├── config_cnn10_xiong_continuity_test.yaml
-│   ├── config_cnn10_xiong_directional.yaml
-│   ├── config_cnn10_xiong_directional_test.yaml
-│   ├── config_cnn10_serifi_gradient.yaml
-│   └── config_cnn10_serifi_gradient_test.yaml
-├── glm/
-└── unet/
-    ├── config_arch1_xiong_continuity.yaml
-    ├── config_arch1_xiong_continuity_test.yaml
-    ├── config_arch1_xiong_directional.yaml
-    ├── config_arch1_xiong_directional_test.yaml
-    ├── config_arch1_serifi_gradient.yaml
-    └── config_arch1_serifi_gradient_test.yaml
-```
+The classical configurations cover CNN1 and CNN10 with either Gaussian
+negative log-likelihood or MSE, plus batch-size variants. Gaussian experiments
+produce a mean and log-variance; deterministic MSE experiments produce one
+temperature channel. `test.yaml` is the reduced classical configuration.
 
-`phy_ai/cnn/` contains the same three independent constraints for both CNN1
-and CNN10, plus a reduced `_test` variant of every configuration.
-`phy_ai/unet/` contains their UNet1 counterparts. `phy_ai/glm/` is reserved
-for future Physics-Informed GLM experiments and does not contain a model
-configuration yet.
+## Physics/structure-informed experiments
 
-## Baseline Models
+The `phy_ai/cnn/` configurations apply one loss at a time to deterministic,
+single-channel CNN1 or CNN10 predictions. Their scientific motivation comes
+from:
 
-The project establishes two primary baselines to benchmark performance:
+- Minquan Xiong (2025), *Impact of Physical Constraints on Deep
+  Learning-Based Downscaling Prediction of Temperature*, Journal of
+  Meteorological Research, 39(4), 904-919.
+  [https://doi.org/10.1007/s13351-025-4061-1](https://doi.org/10.1007/s13351-025-4061-1)
+- Agon Serifi, Tobias Günther, and Nikolina Ban (2021), *Spatio-Temporal
+  Downscaling of Climate Data Using Convolutional and Error-Predicting Neural
+  Networks*, Frontiers in Climate, 3:656479.
+  [https://doi.org/10.3389/fclim.2021.656479](https://doi.org/10.3389/fclim.2021.656479)
 
-### 1. CNN Baseline (`cnn_temperature` & `cnn1_temperature`)
-* **Architecture:** Convolutional Neural Network (`mode: cnn10` and `mode: cnn1`)
-* **Loss function:** Gaussian (NLL)
-* **Optimizer:** Adam
-* **Learning Rate:** 1e-3
-* **Batch size:** 64
-* **Scheduler:** None
-* **Regularization:** Dropout (0.1), Weight Decay (1e-4)
+The equations below describe the losses implemented in
+`src/core/losses.py`. Let \(P_{b,i,j}\) be the predicted temperature,
+\(T_{b,i,j}\) the target, \(B\) the batch size, and \(\varepsilon>0\) the
+numerical-stability constant.
 
-### 2. U-Net Optimized Baseline (`unet1`)
-* **Architecture:** U-Net (`unet1`)
-* **Loss function:** Gaussian (NLL)
-* **Optimizer:** AdamW
-* **Learning Rate:** 1e-3
-* **Batch size:** 32
-* **Scheduler:** Cosine Annealing
-* **Regularization:** Dropout (0.1), Weight Decay (1e-4)
+### Common RMSE data term for the Xiong losses
 
-*(Note: An initial U-Net port named `unet1_temperature` was trained using the basic CNN parameters before establishing the `unet1` optimized baseline).*
+Both Xiong variants begin with:
 
----
+$$
+L_{\mathrm{RMSE}}
+=\sqrt{\frac{1}{BHW}\sum_{b=1}^{B}\sum_{i=1}^{H}\sum_{j=1}^{W}
+\left(P_{b,i,j}-T_{b,i,j}\right)^2+\varepsilon}.
+$$
 
-## Experimental Campaign
+This term maintains pointwise predictive accuracy. Each Xiong constraint then
+adds a penalty measuring disagreement between a structural quantity computed
+from the predicted and reference fields.
 
-The campaign follows a systematic ablation and hyperparameter tuning strategy to evaluate the impact of different architectural and training choices.
+### Xiong spatial-continuity loss
 
-### Architecture Experiments
+For any field \(F\), define its spatial continuity energy as the sum of squared
+differences between horizontal and vertical neighbours:
 
-#### CNN vs U-Net Baseline (`unet1_temperature`)
-**Configuration file:** `unet/config_arch1.yaml`
+$$
+C(F_b)=
+\sum_{i=1}^{H-1}\sum_{j=1}^{W}\left(F_{b,i+1,j}-F_{b,i,j}\right)^2
++\sum_{i=1}^{H}\sum_{j=1}^{W-1}\left(F_{b,i,j+1}-F_{b,i,j}\right)^2.
+$$
 
-**Modification relative to baseline:** Uses the U-Net architecture instead of CNN, but keeps CNN training parameters (Adam, BS=64, no scheduler).
+The implemented loss is:
 
-**Objective:** Isolate the impact of the U-Net architecture's spatial skip-connections.
+$$
+L_{\mathrm{continuity}}
+=L_{\mathrm{RMSE}}
++w_c\frac{1}{B}\sum_{b=1}^{B}\left|C(P_b)-C(T_b)\right|,
+$$
 
-**Hypothesis being tested:** U-Net provides better high-resolution spatial localization than standard CNNs.
+with `continuity_weight` \(w_c=10^{-4}\) in the supplied configurations.
+Following Xiong, its purpose is to constrain the spatial continuity/smoothness
+of the downscaled temperature field, discouraging unrealistic neighbouring-grid
+variations while retaining the data-fit objective. It matches the target's
+aggregate continuity energy; it is not a fluid continuity equation.
 
-**Expected impact:** Improved spatial correlation metrics and better extreme value capture.
+### Xiong directional-consistency loss
 
-#### Training Regime Upgrade (`unet1`)
-**Configuration file:** `unet/unet1.yaml` (and identically `unet/unet1_loss_gaussian.yaml`)
+For any field \(F\), define the aggregate neighbour direction:
 
-**Modification relative to baseline:** Switched from `unet1_temperature` basic params to advanced params: AdamW, Batch Size 32, Cosine Scheduler.
+$$
+D(F_b)=
+\sum_{i=1}^{H-1}\sum_{j=1}^{W}
+\operatorname{atan2}\!\left(F_{b,i+1,j},F_{b,i,j}\right)
++\sum_{i=1}^{H}\sum_{j=1}^{W-1}
+\operatorname{atan2}\!\left(F_{b,i,j+1},F_{b,i,j}\right).
+$$
 
-**Objective:** Maximize U-Net convergence capability.
+The implemented loss is:
 
-**Hypothesis being tested:** Modern optimization techniques (AdamW + Cosine Annealing) unlock U-Net's full capacity.
+$$
+L_{\mathrm{directional}}
+=L_{\mathrm{RMSE}}
++w_d\frac{1}{B}\sum_{b=1}^{B}\left|D(P_b)-D(T_b)\right|,
+$$
 
-**Expected impact:** Lower training/validation loss and better overall RMSE.
+with `directional_weight` \(w_d=10^{-4}\). Its purpose is to make the
+prediction reproduce the target field's aggregate spatial direction changes,
+thereby improving directional consistency between neighbouring temperatures.
+The PyTorch implementation uses `atan2(neighbour, current)`.
 
-### Loss Function Experiments
+### Serifi spatial-gradient loss
 
-#### Mean Squared Error vs Gaussian (`cnn_mse_temperature` / `unet1_temp_mse` / `unet1_loss_mse`)
-**Configuration files:** `cnn/config_mse.yaml`, `unet/config_unet1_mse.yaml`, `unet/unet1_loss_mse.yaml`
+Define forward spatial differences:
 
-**Modification relative to baseline:** Replaced the Gaussian Negative Log-Likelihood loss with deterministic MSE.
+$$
+\Delta_xF_{b,i,j}=F_{b,i,j+1}-F_{b,i,j},\qquad
+\Delta_yF_{b,i,j}=F_{b,i+1,j}-F_{b,i,j}.
+$$
 
-**Objective:** Compare probabilistic variance-aware predictions against purely deterministic predictions.
+The three averaged terms are:
 
-**Hypothesis being tested:** Gaussian loss allows the model to capture heteroscedastic uncertainty better than MSE, improving performance on extreme temperature variations.
+$$
+L_{\mathrm{data}}=\operatorname{mean}|P-T|,
+$$
 
-**Expected impact:** MSE might yield a slightly better pure RMSE, but Gaussian should heavily outperform on extreme distribution metrics (B02, B98, WAMS).
+$$
+L_{\nabla x}=\operatorname{mean}|\Delta_xP-\Delta_xT|,\qquad
+L_{\nabla y}=\operatorname{mean}|\Delta_yP-\Delta_yT|.
+$$
 
-### Physics-Informed AI Experiments
+The implemented loss is:
 
-The Physics-Informed configurations use the standard CNN1, CNN10, or UNet1
-architecture and add one structural constraint at a time.
+$$
+L_{\mathrm{Serifi}}
+=L_{\mathrm{data}}+\lambda\left(L_{\nabla x}+L_{\nabla y}\right),
+$$
 
-CNN configurations:
+with `gradient_weight` \(\lambda=1\) in the supplied configurations. Serifi
+et al. combine an \(L_1\) value loss with a gradient loss because CNN outputs
+tend to be overly smooth. Penalizing derivative errors helps reconstruct sharp,
+high-frequency spatial details. This implementation uses spatial gradients
+only; it does not include temporal gradients or impose a conservation law.
 
-- `phy_ai/cnn/config_cnn1_xiong_continuity.yaml`
-- `phy_ai/cnn/config_cnn1_xiong_directional.yaml`
-- `phy_ai/cnn/config_cnn1_serifi_gradient.yaml`
-- `phy_ai/cnn/config_cnn10_xiong_continuity.yaml`
-- `phy_ai/cnn/config_cnn10_xiong_directional.yaml`
-- `phy_ai/cnn/config_cnn10_serifi_gradient.yaml`
+## Full and reduced configurations
 
-Reduced CNN test configurations:
+Each CNN1/loss and CNN10/loss combination has a full configuration and a
+matching `_test.yaml` configuration. The reduced variants preserve the model
+and loss settings but use 20 epochs, a batch size of 4, training over
+1980-1984, testing on 1985, disabled validation, and
+`./temp/results_test/`. They are intended for inexpensive integration runs,
+not as final scientific experiments.
 
-- `phy_ai/cnn/config_cnn1_xiong_continuity_test.yaml`
-- `phy_ai/cnn/config_cnn1_xiong_directional_test.yaml`
-- `phy_ai/cnn/config_cnn1_serifi_gradient_test.yaml`
-- `phy_ai/cnn/config_cnn10_xiong_continuity_test.yaml`
-- `phy_ai/cnn/config_cnn10_xiong_directional_test.yaml`
-- `phy_ai/cnn/config_cnn10_serifi_gradient_test.yaml`
+## Running an experiment
 
-Each CNN configuration is deterministic and produces one output channel. It
-keeps the data, dates, optimizer, normalization, batch size, and other
-parameters of its corresponding classical CNN1 or CNN10 configuration. The
-three losses are never combined. The legacy `LR_scheduler` block is omitted;
-only the supported `scheduler` block is retained.
-
-Each `_test` configuration keeps the model and loss parameters of its full
-CNN counterpart, but uses 20 epochs, a batch size of 4, training over
-1980--1984, evaluation over 1985, disabled validation, and
-`./temp/results_test/`. The CNN-specific GroupNorm value (32) and validation
-percentage (0.1, inactive while validation is disabled) are preserved. These
-are reduced experiment configurations, not one-day smoke tests.
-
-UNet1 configurations:
-
-- `phy_ai/unet/config_arch1_xiong_continuity.yaml`
-  - Architecture: `UNet1`
-  - Loss: `xiong_continuity`
-  - Constraint: spatial continuity
-  - Output: deterministic, one channel
-- `phy_ai/unet/config_arch1_xiong_directional.yaml`
-  - Architecture: `UNet1`
-  - Loss: `xiong_directional`
-  - Constraint: directional consistency
-  - Output: deterministic, one channel
-- `phy_ai/unet/config_arch1_serifi_gradient.yaml`
-  - Architecture: `UNet1`
-  - Loss: `serifi_gradient`
-  - Data term: pointwise L1
-  - Constraint: local L1 agreement of forward spatial differences along x
-    and y
-  - Gradient weight: `1.0`
-  - Output: deterministic, one channel
-
-For prediction `P`, target `T`, and `lambda = 1.0`, the Serifi loss is:
-
-```text
-dx(F) = F[..., :, 1:] - F[..., :, :-1]
-dy(F) = F[..., 1:, :] - F[..., :-1, :]
-
-L = mean(|P - T|)
-    + lambda * (mean(|dx(P) - dx(T)|) + mean(|dy(P) - dy(T)|))
-```
-
-This term preserves local spatial derivatives; it is not a conservation law
-and it does not include temporal gradients. The Xiong continuity, Xiong
-directional, and Serifi gradient constraints are always tested separately and
-are never combined in these configurations.
-
-Reference: Agon Serifi, Tobias Günther, and Nikolina Ban (2021),
-*Spatio-Temporal Downscaling of Climate Data Using Convolutional and
-Error-Predicting Neural Networks*, *Frontiers in Climate*, 3:656479,
-DOI `10.3389/fclim.2021.656479`.
-
-Run the CNN experiments from the repository root, so the active relative
-paths under `DATA1/` resolve correctly. Replace `<config>` with any of the six
-full or six reduced CNN filenames listed above:
+Run from the repository root so the relative data paths resolve consistently:
 
 ```bash
-python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/phy_ai/cnn/<config>
-python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/phy_ai/cnn/<config>
+python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/cnn/config_cnn1.yaml
+python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/cnn/config_cnn1.yaml
 ```
 
-Run the UNet1 experiments from the `temp/era5_mswt/main` directory:
+For a physics/structure-informed experiment:
 
 ```bash
-cd temp/era5_mswt/main
-
-python train.py configs/phy_ai/unet/config_arch1_xiong_continuity.yaml
-python eval.py configs/phy_ai/unet/config_arch1_xiong_continuity.yaml
-
-python train.py configs/phy_ai/unet/config_arch1_xiong_directional.yaml
-python eval.py configs/phy_ai/unet/config_arch1_xiong_directional.yaml
-
-python train.py configs/phy_ai/unet/config_arch1_serifi_gradient.yaml
-python eval.py configs/phy_ai/unet/config_arch1_serifi_gradient.yaml
+python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_serifi_gradient.yaml
+python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_serifi_gradient.yaml
 ```
 
-### Optimization Experiments
-
-#### Batch Size Variations (`cnn_bs32_temperature` / `unet1_temp_bs32` / `unet_bs_64`)
-**Configuration files:** `cnn/config_bs32.yaml`, `unet/config_unet1_bs32.yaml`, `unet/unet_bs_64.yaml`
-
-**Modification relative to baseline:** Inverted the batch sizes (from 64 to 32 for CNN/early-UNet, and from 32 to 64 for optimized UNet).
-
-**Objective:** Evaluate the generalization gap induced by batch size.
-
-**Hypothesis being tested:** Smaller batch sizes provide more stochasticity, acting as implicit regularization and escaping local minima.
-
-**Expected impact:** Improved validation loss and reduced overfitting for Batch Size 32.
-
-#### Learning Rate Decay (`unet_lr_1e4` / `unet_lr_5e4`)
-**Configuration files:** `unet/unet_lr_1e4.yaml`, `unet/unet_lr_5e4.yaml`
-
-**Modification relative to baseline:** Reduced base learning rate from 1e-3 to 1e-4 and 5e-4 respectively.
-
-**Objective:** Prevent catastrophic forgetting or divergence during Cosine Annealing.
-
-**Hypothesis being tested:** The default 1e-3 LR might be too aggressive for the U-Net's deep layers.
-
-**Expected impact:** Smoother, albeit slower, convergence curves and potentially better fine-grained spatial accuracy.
-
-#### Scheduler Removal (`unet_no_scheduler`)
-**Configuration file:** `unet/unet_no_scheduler.yaml`
-
-**Modification relative to baseline:** Disabled the Cosine Annealing scheduler.
-
-**Objective:** Establish the exact contribution of the learning rate schedule.
-
-**Hypothesis being tested:** A static learning rate causes the model to plateau in suboptimal local minima.
-
-**Expected impact:** Higher final RMSE compared to the baseline `unet1`.
-
-### Regularization Experiments
-
-#### Elevated Dropout (`unet1_temp_reg` / `unet_dropout_02`)
-**Configuration files:** `unet/config_unet1_reg.yaml` (Dropout 0.3), `unet/unet_dropout_02.yaml` (Dropout 0.2)
-
-**Modification relative to baseline:** Increased Dropout from 0.1 to 0.2 and 0.3.
-
-**Objective:** Combat overfitting.
-
-**Hypothesis being tested:** The U-Net architecture might be heavily memorizing the training climatology.
-
-**Expected impact:** Reduced gap between Training and Validation loss; potentially worse raw bias due to underfitting if 0.3 is too high.
-
-#### Aggressive Weight Decay (`unet_weight_decay_1e3`)
-**Configuration file:** `unet/unet_weight_decay_1e3.yaml`
-
-**Modification relative to baseline:** Increased AdamW weight decay from 1e-4 to 1e-3.
-
-**Objective:** Enforce smoother filters and restrict model capacity.
-
-**Hypothesis being tested:** Stronger L2 regularization prevents the model from relying on noisy, localized artifacts in the ERA5 predictors.
-
-**Expected impact:** More spatially cohesive predictions, avoiding pixel-level 'checkerboard' artifacts.
-
----
-
-## Experiment Design Logic
-
-The overall strategy of this campaign is structured as a hierarchical grid search focused on empirical climate downscaling:
-1. **First phase:** Establish if a complex spatial architecture (U-Net) outperforms a local one (CNN).
-2. **Second phase:** Determine the most robust loss function for climate fields. The debate between MSE (mean-seeking) and Gaussian (distribution-seeking) is critical for capturing climate extremes like heatwaves.
-3. **Third phase:** Once the architecture and loss are set, tune the optimization landscape. Climate datasets are highly correlated sequentially, so finding the right batch size and learning rate scheduler is key to proper gradient descent.
-4. **Final phase:** Apply strict regularization (Dropout, Weight Decay) to ensure the downscaled outputs don't just memorize the topography, but actually learn transferrable thermodynamic mappings.
-
----
-
-## Completed Classical Experiments Summary Table
-
-| Experiment | Category | Modified Parameter | Objective | Postprocessed |
-| ---------- | -------- | ------------------ | --------- | ------------- |
-| `cnn_temperature` | Baseline | None (CNN Base) | Reference benchmark | Yes |
-| `cnn1_temperature` | Baseline | Mode (cnn1) | Shallow vs Deep CNN | Yes |
-| `unet1_temperature` | Arch | UNet (CNN params) | Evaluate architecture | Yes |
-| `unet1` | Baseline | AdamW, BS=32, Cosine | Optimized UNet Ref | Yes |
-| `cnn_mse_temperature` | Loss | Loss = MSE | CNN deterministic | Yes |
-| `unet1_temp_mse` | Loss | Loss = MSE (Basic) | UNet deterministic | Yes |
-| `unet1_loss_mse` | Loss | Loss = MSE (Optim) | UNet deterministic | Yes |
-| `unet1_loss_gaussian` | Loss | None (Duplicate) | Baseline validation | Yes |
-| `cnn_bs32_temperature` | Optim | Batch Size = 32 | Implicit regularization | Yes |
-| `unet1_temp_bs32` | Optim | Batch Size = 32 | Implicit regularization | Yes |
-| `unet_bs_64` | Optim | Batch Size = 64 | Batch normalization diff | Yes |
-| `unet_lr_1e4` | Optim | LR = 1e-4 | Convergence stability | Yes |
-| `unet_lr_5e4` | Optim | LR = 5e-4 | Convergence stability | Yes |
-| `unet_no_scheduler` | Optim | Sched = None | Scheduler ablation | Yes |
-| `unet1_temp_reg` | Reg | Dropout = 0.3 | High dropout combat | Yes |
-| `unet_dropout_02` | Reg | Dropout = 0.2 | Mid dropout combat | Yes |
-| `unet_weight_decay_1e3`| Reg | WD = 1e-3 | Stronger L2 penalty | Yes |
+Before starting a full experiment, verify `paths`, date ranges, result
+directories, and the desired CNN mode in the selected YAML file.
