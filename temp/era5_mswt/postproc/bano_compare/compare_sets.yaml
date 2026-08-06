@@ -1,0 +1,56 @@
+# Configuration for multi-model comparisons
+
+spatial:
+  eval_domain: "land"   # "full_domain" | "morocco_shape" | "land"
+  land_shapefile_path: null
+
+output:
+  folder_name: "multi_compare"
+  dpi: 300
+
+comparison_sets:
+  cnn_only:
+    - path: "../../main/configs/cnn/config.yaml"
+      label: "CNN-Temp"
+    - path: "../../main/configs/cnn/config_cnn1.yaml"
+      label: "CNN1-Temp"
+    - path: "../../main/configs/cnn/config_cnn1_mse.yaml"
+      label: "CNN1-MSE"
+    - path: "../../main/configs/cnn/config_cnn10_mse.yaml"
+      label: "CNN10-MSE"
+
+  phy_ai_only:
+    - path: "../../main/configs/phy_ai/cnn/config_cnn1_serifi_gradient.yaml"
+      label: "CNN1-Serifi"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn1_xiong_continuity.yaml"
+      label: "CNN1-Xiong-Cont"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn1_xiong_directional.yaml"
+      label: "CNN1-Xiong-Dir"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn10_serifi_gradient.yaml"
+      label: "CNN10-Serifi"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn10_xiong_continuity.yaml"
+      label: "CNN10-Xiong-Cont"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn10_xiong_directional.yaml"
+      label: "CNN10-Xiong-Dir"
+
+  cnn_vs_phy_ai:
+    - path: "../../main/configs/cnn/config.yaml"
+      label: "CNN-Temp"
+    - path: "../../main/configs/cnn/config_cnn1.yaml"
+      label: "CNN1-Temp"
+    - path: "../../main/configs/cnn/config_cnn1_mse.yaml"
+      label: "CNN1-MSE"
+    - path: "../../main/configs/cnn/config_cnn10_mse.yaml"
+      label: "CNN10-MSE"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn1_serifi_gradient.yaml"
+      label: "CNN1-Serifi"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn1_xiong_continuity.yaml"
+      label: "CNN1-Xiong-Cont"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn1_xiong_directional.yaml"
+      label: "CNN1-Xiong-Dir"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn10_serifi_gradient.yaml"
+      label: "CNN10-Serifi"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn10_xiong_continuity.yaml"
+      label: "CNN10-Xiong-Cont"
+    - path: "../../main/configs/phy_ai/cnn/config_cnn10_xiong_directional.yaml"
+      label: "CNN10-Xiong-Dir"

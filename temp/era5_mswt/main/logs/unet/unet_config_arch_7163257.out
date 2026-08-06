@@ -1,0 +1,6 @@
+Starting training for ../configs/unet/config_arch.yaml
+Using device: cuda
+Using device: cuda
+=== Starting training process for temp ===
+=== Loading datasets (src=era5, target=mswt) ===
+Finished training for ../configs/unet/config_arch.yaml

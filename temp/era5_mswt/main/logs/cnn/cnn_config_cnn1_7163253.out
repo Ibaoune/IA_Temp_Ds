@@ -1,0 +1,220 @@
+Starting training for ../configs/cnn/config_cnn1.yaml
+Using device: cuda
+Using device: cuda
+=== Starting training process for temp ===
+=== Loading datasets (src=era5, target=mswt) ===
+Loading temp file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/mswep/mswt_1979_2020.nc
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'time': 15341, 'lat': 220, 'lon': 220})
+   shape       : (15341, 220, 220)
+   lon range   : -20.950000762939453 → 0.9500091671943665
+   lat range   : 19.049999237060547 → 40.95000076293945
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'time': 15341, 'lat': 150, 'lon': 180})
+   shape       : (15341, 150, 180)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+TEMP shapes → train=(9862, 150, 180), test=(5479, 150, 180)
+Checking target time resolution...
+   [STATS] temp (train): mean=21.8716, min=-13.8125, max=43.75
+   [STATS] temp (test): mean=22.4152, min=-12.5625, max=43.75
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/z_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from z
+   [STATS] z_500: mean=57129.4, min=51787.2, max=58985.4
+  → Extracting level 700 from z
+   [STATS] z_700: mean=30975, min=27332.9, max=32355.8
+  → Extracting level 850 from z
+   [STATS] z_850: mean=15065, min=11984.3, max=16680
+  → Extracting level 1000 from z
+   [STATS] z_1000: mean=1382.66, min=-1557.59, max=3422.01
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/q_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from q
+   [STATS] q_500: mean=0.000899263, min=2.47326e-07, max=0.00508807
+  → Extracting level 700 from q
+   [STATS] q_700: mean=0.00243861, min=2.47326e-07, max=0.0101267
+  → Extracting level 850 from q
+   [STATS] q_850: mean=0.00395488, min=3.40433e-06, max=0.0160928
+  → Extracting level 1000 from q
+   [STATS] q_1000: mean=0.0068499, min=0.000379719, max=0.0195475
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/t_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from t
+   [STATS] t_500: mean=-11.5954, min=-37.1495, max=-0.750632
+  → Extracting level 700 from t
+   [STATS] t_700: mean=6.6263, min=-18.7922, max=18.2581
+  → Extracting level 850 from t
+   [STATS] t_850: mean=16.5782, min=-8.39888, max=34.181
+  → Extracting level 1000 from t
+   [STATS] t_1000: mean=16.5782, min=-8.39888, max=34.181
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/u_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from u
+   [STATS] u_500: mean=7.35987, min=-34.6173, max=57.0537
+  → Extracting level 700 from u
+   [STATS] u_700: mean=3.30959, min=-30.728, max=41.3677
+  → Extracting level 850 from u
+   [STATS] u_850: mean=-0.300831, min=-30.6586, max=35.1178
+  → Extracting level 1000 from u
+   [STATS] u_1000: mean=-1.41186, min=-21.4339, max=20.9522
+Loading merged variable file: /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data//era5ztquv/1979_2020/all_data/v_1979-2020_levels.nc...
+→ Applying spatial mask
+  [BEFORE MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 81, 'longitude': 81})
+   shape       : (4, 15341, 81, 81)
+   lon range   : -20.0 → 0.0
+   lat range   : 20.0 → 40.0
+  [AFTER MASK]
+   dims        : FrozenMappingWarningOnValuesAccess({'level': 4, 'time': 15341, 'latitude': 61, 'longitude': 73})
+   shape       : (4, 15341, 61, 73)
+  Mask applied: lon=slice(-18.0, 0.0, None), lat=slice(21.0, 36.0, None)
+  → Extracting level 500 from v
+   [STATS] v_500: mean=0.603175, min=-55.2543, max=48.489
+  → Extracting level 700 from v
+   [STATS] v_700: mean=0.468335, min=-36.3606, max=37.6175
+  → Extracting level 850 from v
+   [STATS] v_850: mean=-0.835763, min=-29.7655, max=34.6308
+  → Extracting level 1000 from v
+   [STATS] v_1000: mean=-2.25803, min=-22.5506, max=22.4446
+Checking time resolution...
+Predictor Shape (X): (15341, 20, 8, 10)
+Target Train Shape (y_train): torch.Size([9862, 150, 180])
+Target Test Shape (y_test): torch.Size([5479, 150, 180])
+=== Finished loading datasets ===
+=== Preprocessing data ===
+Applying normalization mode: gridbox
+Normalization done.
+--- Processing temp (train) ---
+train raw [degree_Celsius] → min=-13.81, max=43.75, mean=21.87
+  Units already in Celsius → skipping conversion
+train converted [C] → min=-13.81, max=43.75, mean=21.87
+--- Processing temp (test) ---
+test raw [degree_Celsius] → min=-12.56, max=43.75, mean=22.42
+  Units already in Celsius → skipping conversion
+test converted [C] → min=-12.56, max=43.75, mean=22.42
+=== Preprocessing complete ===
+Initializing model for training...
+
+----------- Machine Features -----------
+ OS: Linux 4.18.0-553.124.1.el8_10.0.2.x86_64
+ CPU: x86_64 (Unknown (psutil missing) cores)
+ RAM: Unknown (psutil missing) GB
+ GPU 0: NVIDIA A100-SXM4-80GB (79.25 GB)
+----------------------------------------
+Epoch 1/100 - Duration: 1.14s - Train Loss: 19.1853 - Val Loss: 2.4317
+Estimated training process duration: 01:53
+
+Best model updated at epoch 1 
+Epoch 2/100 - Duration: 0.84s - Train Loss: 2.3526 - Val Loss: 2.1892
+Best model updated at epoch 2 
+Epoch 3/100 - Duration: 0.84s - Train Loss: 2.1801 - Val Loss: 2.1708
+Best model updated at epoch 3 
+Epoch 4/100 - Duration: 0.84s - Train Loss: 2.0762 - Val Loss: 2.3613
+No improvement at epoch 4 (patience: 1/15)
+Epoch 5/100 - Duration: 0.83s - Train Loss: 2.0924 - Val Loss: 1.9751
+Best model updated at epoch 5 
+Epoch 6/100 - Duration: 0.83s - Train Loss: 2.0453 - Val Loss: 1.9220
+Best model updated at epoch 6 
+Epoch 7/100 - Duration: 0.84s - Train Loss: 1.9681 - Val Loss: 1.9579
+No improvement at epoch 7 (patience: 1/15)
+Epoch 8/100 - Duration: 0.83s - Train Loss: 1.9120 - Val Loss: 2.2328
+No improvement at epoch 8 (patience: 2/15)
+Epoch 9/100 - Duration: 0.83s - Train Loss: 1.9370 - Val Loss: 1.7966
+Best model updated at epoch 9 
+Epoch 10/100 - Duration: 0.83s - Train Loss: 2.0028 - Val Loss: 1.9056
+No improvement at epoch 10 (patience: 1/15)
+Epoch 11/100 - Duration: 0.84s - Train Loss: 1.9085 - Val Loss: 1.9195
+No improvement at epoch 11 (patience: 2/15)
+Epoch 12/100 - Duration: 0.84s - Train Loss: 1.7494 - Val Loss: 1.8688
+No improvement at epoch 12 (patience: 3/15)
+Epoch 13/100 - Duration: 0.84s - Train Loss: 1.8154 - Val Loss: 1.7772
+Best model updated at epoch 13 
+Epoch 14/100 - Duration: 0.84s - Train Loss: 1.8490 - Val Loss: 2.3655
+No improvement at epoch 14 (patience: 1/15)
+Epoch 15/100 - Duration: 0.84s - Train Loss: 1.8807 - Val Loss: 1.6132
+Best model updated at epoch 15 
+Epoch 16/100 - Duration: 0.84s - Train Loss: 1.7410 - Val Loss: 1.7026
+No improvement at epoch 16 (patience: 1/15)
+Epoch 17/100 - Duration: 0.84s - Train Loss: 1.8211 - Val Loss: 1.6815
+No improvement at epoch 17 (patience: 2/15)
+Epoch 18/100 - Duration: 0.84s - Train Loss: 1.7413 - Val Loss: 1.5861
+Best model updated at epoch 18 
+Epoch 19/100 - Duration: 0.84s - Train Loss: 1.8259 - Val Loss: 1.5026
+Best model updated at epoch 19 
+Epoch 20/100 - Duration: 0.84s - Train Loss: 1.7670 - Val Loss: 1.9036
+No improvement at epoch 20 (patience: 1/15)
+Epoch 21/100 - Duration: 0.84s - Train Loss: 1.6712 - Val Loss: 1.6838
+No improvement at epoch 21 (patience: 2/15)
+Epoch 22/100 - Duration: 0.84s - Train Loss: 1.7360 - Val Loss: 1.8475
+No improvement at epoch 22 (patience: 3/15)
+Epoch 23/100 - Duration: 0.83s - Train Loss: 1.7312 - Val Loss: 1.7050
+No improvement at epoch 23 (patience: 4/15)
+Epoch 24/100 - Duration: 0.84s - Train Loss: 1.6247 - Val Loss: 1.6416
+No improvement at epoch 24 (patience: 5/15)
+Epoch 25/100 - Duration: 0.84s - Train Loss: 1.8249 - Val Loss: 1.9815
+No improvement at epoch 25 (patience: 6/15)
+Epoch 26/100 - Duration: 0.84s - Train Loss: 1.7460 - Val Loss: 1.6259
+No improvement at epoch 26 (patience: 7/15)
+Epoch 27/100 - Duration: 0.84s - Train Loss: 1.7530 - Val Loss: 1.6551
+No improvement at epoch 27 (patience: 8/15)
+Epoch 28/100 - Duration: 0.84s - Train Loss: 1.7075 - Val Loss: 1.5940
+No improvement at epoch 28 (patience: 9/15)
+Epoch 29/100 - Duration: 0.84s - Train Loss: 1.6194 - Val Loss: 2.3360
+No improvement at epoch 29 (patience: 10/15)
+Epoch 30/100 - Duration: 0.84s - Train Loss: 1.8084 - Val Loss: 1.7136
+No improvement at epoch 30 (patience: 11/15)
+Epoch 31/100 - Duration: 0.84s - Train Loss: 1.9802 - Val Loss: 1.6989
+No improvement at epoch 31 (patience: 12/15)
+Epoch 32/100 - Duration: 0.84s - Train Loss: 1.6674 - Val Loss: 1.7421
+No improvement at epoch 32 (patience: 13/15)
+Epoch 33/100 - Duration: 0.84s - Train Loss: 1.6439 - Val Loss: 1.6665
+No improvement at epoch 33 (patience: 14/15)
+Epoch 34/100 - Duration: 0.84s - Train Loss: 1.7586 - Val Loss: 2.0900
+No improvement at epoch 34 (patience: 15/15)
+Early stopping triggered at epoch 34/100. Best model was found at epoch 19 with monitored loss = 1.5026.
+
+=========== Training Summary ===========
+Best epoch         : 19
+Best monitored loss: 1.5026
+LAST model saved   : /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/results/cnn1_temperature/models/cnn_temp_last.pth
+BEST model saved   : /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/results/cnn1_temperature/models/cnn_temp_best.pth
+Results directory  : /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/results/cnn1_temperature
+========================================
+Finished training for ../configs/cnn/config_cnn1.yaml
