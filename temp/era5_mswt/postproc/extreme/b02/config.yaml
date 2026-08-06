@@ -1,5 +1,5 @@
 project:
-  main_config_path: "./temp/main/configs/cnn/config_mse.yaml"
+  main_config_path: "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/configs/phy_ai/cnn/config_cnn10_xiong_directional.yaml"
 
 metric:
   name: "b02"
