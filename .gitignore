@@ -2,6 +2,7 @@
 DATA1/
 morocco_shapefile/
 results/
+!temp/era5_mswt/postproc/results/multi_compare/
 climate_env/
 temp/results/
 temp/results_test/

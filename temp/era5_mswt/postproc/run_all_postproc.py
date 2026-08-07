@@ -16,15 +16,27 @@ for root, _, files in os.walk(POSTPROC_DIR):
         if file.endswith("config.yaml"):
             metric_configs.append(Path(root) / file)
 
-print(f"Found {len(metric_configs)} metric configurations.")
-
 # Find all model configs
 model_configs = []
-for arch in ["cnn", "unet"]:
-    arch_dir = CONFIGS_DIR / arch
-    if arch_dir.exists():
-        for file in arch_dir.glob("*.yaml"):
-            model_configs.append(file)
+hardcoded_configs = [
+    "cnn/config.yaml",
+    "cnn/config_cnn1.yaml",
+    "cnn/config_cnn1_mse.yaml",
+    "cnn/config_cnn10_mse.yaml",
+    "phy_ai/cnn/config_cnn1_serifi_gradient.yaml",
+    "phy_ai/cnn/config_cnn1_xiong_continuity.yaml",
+    "phy_ai/cnn/config_cnn1_xiong_directional.yaml",
+    "phy_ai/cnn/config_cnn10_serifi_gradient.yaml",
+    "phy_ai/cnn/config_cnn10_xiong_continuity.yaml",
+    "phy_ai/cnn/config_cnn10_xiong_directional.yaml"
+]
+
+for cfg_rel_path in hardcoded_configs:
+    cfg_path = CONFIGS_DIR / cfg_rel_path
+    if cfg_path.exists():
+        model_configs.append(cfg_path)
+    else:
+        print(f"Warning: Config not found: {cfg_path}")
 
 print(f"Found {len(model_configs)} model configurations to process.")
 
