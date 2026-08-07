@@ -224,6 +224,45 @@ configs/phy_ai/cnn/
 
 ---
 
+## Xiong lambda sweep
+
+The controlled Xiong sweep covers both CNN architectures (`cnn1`, `cnn10`),
+both constraints (`xiong_directional`, `xiong_continuity`), and the following
+constraint weights:
+
+```text
+0, 1e-4, 1e-3, 1e-2, 1e-1, 1
+```
+
+Files follow this pattern:
+
+```text
+configs/phy_ai/cnn/config_<architecture>_xiong_<constraint>_lambda<value>.yaml
+```
+
+For example:
+
+```text
+configs/phy_ai/cnn/config_cnn1_xiong_directional_lambda0.yaml
+configs/phy_ai/cnn/config_cnn10_xiong_continuity_lambda1e-2.yaml
+```
+
+Within each family, all scientific and training parameters are copied from the
+corresponding original Xiong configuration. Only the active Xiong weight, the
+unique experiment name, and the unique results directory differ. Directional
+sweeps vary `training.xiong.directional_weight`; continuity sweeps vary
+`training.xiong.continuity_weight`. The inactive weight remains unchanged.
+
+The `lambda0` cases retain the Xiong loss and its stabilized RMSE data term but
+multiply the structural penalty by zero. They are therefore matched data-loss
+baselines. Positive values progressively strengthen the constraint, allowing
+its effect on standard metrics and temperature extremes to be isolated. The
+original Xiong configurations use \(\lambda=10^{-4}\); the matching
+`lambda1e-4` files intentionally reproduce that setting with unique
+experiment and output names.
+
+---
+
 ## Full and reduced configurations
 
 Each CNN/loss combination has:
