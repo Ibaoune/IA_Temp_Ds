@@ -4,7 +4,7 @@
 
 general:
   verbose: true
-  experiment: "cnn1_temperature_xiong_continuity_lambda1"
+  experiment: "cnn1_temperature_xiong_continuity_wc1"
   variable: "temp"
   target: "mswt"
   src: "era5"
@@ -67,7 +67,7 @@ dates:
 paths:
   # Paths for Mohammad's environment
   root_dir: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5"
-  results_dir: "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/results/phy_ai/cnn1_xiong_continuity_lambda1"
+  results_dir: "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/results/phy_ai/cnn1_xiong_continuity_wc1"
   shapefile_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/shapefiles/Morocco_shpfile/DA_REGIONS_12R.shp"
   era5_predictor_pattern: "{var}_1979-2020_levels.nc"
   mswt_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/obs/mswep/mswt_1979_2020.nc"

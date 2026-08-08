@@ -47,32 +47,23 @@ predicted temperature and \(T_{i,j}\) the reference temperature.
 The continuity error compares the total squared neighbour-difference energy
 of the predicted and reference fields:
 
+For any field $F$, define its total squared neighbour-difference energy as:
+
 $$
-\begin{aligned}
-E_c =
-\Bigg|
-&\left[
-\sum_{i=1}^{H-1}\sum_{j=1}^{W}
-\left(\widehat{T}_{i+1,j}-\widehat{T}_{i,j}\right)^2
-+
-\sum_{i=1}^{H}\sum_{j=1}^{W-1}
-\left(\widehat{T}_{i,j+1}-\widehat{T}_{i,j}\right)^2
-\right] \\
--&\left[
-\sum_{i=1}^{H-1}\sum_{j=1}^{W}
-\left(T_{i+1,j}-T_{i,j}\right)^2
-+
-\sum_{i=1}^{H}\sum_{j=1}^{W-1}
-\left(T_{i,j+1}-T_{i,j}\right)^2
-\right]
-\Bigg|.
-\end{aligned}
+C(F)=\sum_{i=1}^{H-1}\sum_{j=1}^{W}(F_{i+1,j}-F_{i,j})^2
++\sum_{i=1}^{H}\sum_{j=1}^{W-1}(F_{i,j+1}-F_{i,j})^2
+$$
+
+The continuity error is then:
+
+$$
+E_c=\left|C(\widehat{T})-C(T)\right|
 $$
 
 The hybrid continuity loss is:
 
 $$
-L_c = \mathrm{RMSE} + w_c E_c.
+L_c=\operatorname{RMSE}(\widehat{T},T)+w_cE_c
 $$
 
 This term does not impose the fluid-mechanics continuity equation. It matches
@@ -87,36 +78,25 @@ The article defines a directional or change-angle quantity from adjacent
 temperature values. In the implementation, the two-argument arctangent is
 evaluated as `atan2(neighbour, current)`:
 
+For any field $F$, define the aggregate neighbour change-angle quantity as:
+
 $$
-\begin{aligned}
-E_d =
-\Bigg|
-&\left[
-\sum_{i=1}^{H-1}\sum_{j=1}^{W}
-\operatorname{atan2}
-\left(\widehat{T}_{i+1,j},\widehat{T}_{i,j}\right)
-+
-\sum_{i=1}^{H}\sum_{j=1}^{W-1}
-\operatorname{atan2}
-\left(\widehat{T}_{i,j+1},\widehat{T}_{i,j}\right)
-\right] \\
--&\left[
-\sum_{i=1}^{H-1}\sum_{j=1}^{W}
-\operatorname{atan2}
-\left(T_{i+1,j},T_{i,j}\right)
-+
-\sum_{i=1}^{H}\sum_{j=1}^{W-1}
-\operatorname{atan2}
-\left(T_{i,j+1},T_{i,j}\right)
-\right]
-\Bigg|.
-\end{aligned}
+D(F)=\sum_{i=1}^{H-1}\sum_{j=1}^{W}
+\operatorname{atan2}(F_{i+1,j},F_{i,j})
++\sum_{i=1}^{H}\sum_{j=1}^{W-1}
+\operatorname{atan2}(F_{i,j+1},F_{i,j})
+$$
+
+The directional error is then:
+
+$$
+E_d=\left|D(\widehat{T})-D(T)\right|
 $$
 
 The hybrid directional loss is:
 
 $$
-L_d = \mathrm{RMSE} + w_d E_d.
+L_d=\operatorname{RMSE}(\widehat{T},T)+w_dE_d
 $$
 
 This is the change-angle definition used by Xiong. It should not be confused
@@ -185,12 +165,8 @@ Let \(Y\) denote the reference field and \(\widehat{Y}\) the prediction. The
 loss published in the article is:
 
 $$
-L\left(Y,\widehat{Y}\right)
-=
-\left\|Y-\widehat{Y}\right\|_1
-+
-\lambda
-\left\|\nabla Y-\nabla\widehat{Y}\right\|_1.
+L(Y,\widehat{Y})=\left\|Y-\widehat{Y}\right\|_1
++\lambda\left\|\nabla Y-\nabla\widehat{Y}\right\|_1
 $$
 
 The first term preserves pointwise accuracy. The second compares derivatives
@@ -224,27 +200,29 @@ configs/phy_ai/cnn/
 
 ---
 
-## Xiong lambda sweep
+## Xiong constraint-weight sweep
 
 The controlled Xiong sweep covers both CNN architectures (`cnn1`, `cnn10`),
 both constraints (`xiong_directional`, `xiong_continuity`), and the following
 constraint weights:
 
 ```text
-0, 1e-4, 1e-3, 1e-2, 1e-1, 1
+Directional: w_d in {0, 1e-4, 1e-3, 1e-2, 1e-1, 1}
+Continuity:  w_c in {0, 1e-4, 1e-3, 1e-2, 1e-1, 1}
 ```
 
-Files follow this pattern:
+Files follow these patterns:
 
 ```text
-configs/phy_ai/cnn/config_<architecture>_xiong_<constraint>_lambda<value>.yaml
+configs/phy_ai/cnn/config_<architecture>_xiong_directional_wd<value>.yaml
+configs/phy_ai/cnn/config_<architecture>_xiong_continuity_wc<value>.yaml
 ```
 
 For example:
 
 ```text
-configs/phy_ai/cnn/config_cnn1_xiong_directional_lambda0.yaml
-configs/phy_ai/cnn/config_cnn10_xiong_continuity_lambda1e-2.yaml
+configs/phy_ai/cnn/config_cnn1_xiong_directional_wd0.yaml
+configs/phy_ai/cnn/config_cnn10_xiong_continuity_wc1e-2.yaml
 ```
 
 Within each family, all scientific and training parameters are copied from the
@@ -253,13 +231,15 @@ unique experiment name, and the unique results directory differ. Directional
 sweeps vary `training.xiong.directional_weight`; continuity sweeps vary
 `training.xiong.continuity_weight`. The inactive weight remains unchanged.
 
-The `lambda0` cases retain the Xiong loss and its stabilized RMSE data term but
-multiply the structural penalty by zero. They are therefore matched data-loss
-baselines. Positive values progressively strengthen the constraint, allowing
-its effect on standard metrics and temperature extremes to be isolated. The
-original Xiong configurations use \(\lambda=10^{-4}\); the matching
-`lambda1e-4` files intentionally reproduce that setting with unique
-experiment and output names.
+The `wd0` and `wc0` cases retain their respective Xiong loss and its stabilized
+RMSE data term but multiply the structural penalty by zero. Thus,
+\(w_d=0\) is the matched RMSE baseline for the directional family and
+\(w_c=0\) is the matched RMSE baseline for the continuity family. Positive
+values progressively strengthen the corresponding Xiong structural penalty,
+allowing its effect on standard metrics and temperature extremes to be
+isolated. The original Xiong configurations use \(w_d=w_c=10^{-4}\); the
+matching `wd1e-4` and `wc1e-4` files intentionally reproduce those settings
+with unique experiment and output names.
 
 ---
 
