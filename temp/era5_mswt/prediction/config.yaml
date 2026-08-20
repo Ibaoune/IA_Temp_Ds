@@ -1,0 +1,95 @@
+general:
+  experiment: "cnn10_mse_temperature"
+  model_type: "cnn10"
+  config_name: "config_cnn10_mse.yaml"
+  loss_type: "mse"
+  src: "lmdz"
+  variables: ["z", "q", "t", "u", "v"]
+  levels: [500, 700, 850, 1000]
+
+dates:
+  test:
+    start: "2006-01-01"
+    end: "2014-12-31"
+  reference:
+    start: "1980-01-01"
+    end: "2005-12-31"
+
+mappings:
+  lmdz_var_map:
+    z: "geop"
+    q: "shum"
+    u: "vitu"
+    v: "vitv"
+    t: "temp"
+
+paths:
+  #folder: "lmdz_35" #or "lmdz_250"
+  folder: "lmdz_250"
+  lmdz_predictor_pattern: "{folder}/all_Mor/present/{lmdz_var}-hist.nc"
+  root_dir: "../../../../DATA1"
+  era5_predictor_pattern: "predictors_era5/{var}_1979-2020_levels.nc"
+  mswt_path: "predictand_mswet/mswt_1979_2020.nc"
+  shapefile_path: "../../../../morocco_shapefile/morocco_unified_fixed_v2.shp"
+
+spatial:
+  eval_domain: "land"
+
+plot:
+  display_domain: "land"
+
+prediction:
+  bias_correction: true
+  bc_reference_folder: ""
+  models_dir: "../results/"
+  output_dir: "../results/cnn10_mse_temperature/prediction"
+  output_units: "degree_Celsius"
+  scenarios: []
+#    - name: "era5_2006_2014"
+#      src: "era5"
+#      start: "2006-01-01"
+#      end: "2006-12-31"
+#      bias_correction: false
+#      folder: "/home/hassan/All data/Internship/Code/Dataset/"
+    
+#    - name: "lmdz_35_present_2006_2014"
+#      src: "lmdz"
+#      start: "2006-01-01"
+#      end: "2014-12-31"
+#      bias_correction: true
+#      folder: "/home/hassan/All data/Internship/Code/LMDZ 35/present/"
+    
+#    - name: "lmdz_250_present_2006_2014"
+#     src: "lmdz"
+#      start: "2006-01-01"
+#      end: "2014-12-31"
+#      bias_correction: true
+#      folder: "/home/hassan/All data/Internship/Code/LMDZ 250/present/"
+
+#    - name: "lmdz_35_ssp245_2006_2014"
+#      src: "lmdz"
+#      start: "2006-01-01"
+#      end: "2006-12-31"
+#      bias_correction: true
+#      folder: "/home/hassan/All data/Internship/Code/LMDZ 35/ssp245/"
+#
+#    - name: "lmdz_35_ssp585_2006_2014"
+#      src: "lmdz"
+#      start: "2006-01-01"
+#      end: "2006-12-31"
+#      bias_correction: true
+#      folder: "/home/hassan/All data/Internship/Code/LMDZ 35/ssp585/"
+#
+#    - name: "lmdz_250_ssp245_2006_2014"
+#      src: "lmdz"
+#      start: "2006-01-01"
+#      end: "2006-12-31"
+#      bias_correction: true
+#      folder: "/home/hassan/All data/Internship/Code/LMDZ 250/ssp245/"
+#
+#    - name: "lmdz_250_ssp585_2006_2014"
+#      src: "lmdz"
+#      start: "2006-01-01"
+#      end: "2006-12-31"
+#      bias_correction: true
+#      folder: "/home/hassan/All data/Internship/Code/LMDZ 250/ssp585/"
