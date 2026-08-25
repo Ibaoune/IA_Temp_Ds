@@ -25,7 +25,7 @@ source ~/.bashrc
 conda activate clean_env_Pytorch
 
 # Run from project root, whatever the submission directory is.
-cd "$(dirname "$0")/../../.."
+cd /srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern
 
 # Afficher les infos GPU (utile pour debug)
 echo "Allocated GPU(s):"
@@ -47,13 +47,13 @@ nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used 
 if [[ "$train" == "yes" ]]; then
     echo "Running training on GPU..."
     echo "Config: $MAIN_CONFIG"
-    python3 -u temp/main/train.py "$MAIN_CONFIG"
+    python3 -u temp/lmdz35Upscaled2degre_to_lmdz35/main/train.py "$MAIN_CONFIG"
 fi
 
 if [[ "$validation" == "yes" ]]; then
     echo "Running validation on GPU..."
     echo "Config: $MAIN_CONFIG"
-    python3 -u temp/main/eval.py "$MAIN_CONFIG"
+    python3 -u temp/lmdz35Upscaled2degre_to_lmdz35/main/eval.py "$MAIN_CONFIG"
 fi
 
 if [[ "$train" != "yes" && "$validation" != "yes" ]]; then

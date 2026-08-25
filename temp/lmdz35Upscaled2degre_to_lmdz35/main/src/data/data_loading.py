@@ -358,6 +358,13 @@ def load_datasets(cfg):
             {time_dim: slice(cfg.start_date_test, cfg.end_date_test)}
         )
 
+        if "presnivs" in y_train_x.dims:
+            y_train_x = y_train_x.sel(presnivs=1000, method="nearest").squeeze()
+            y_test_x = y_test_x.sel(presnivs=1000, method="nearest").squeeze()
+        elif "level" in y_train_x.dims:
+            y_train_x = y_train_x.sel(level=1000, method="nearest").squeeze()
+            y_test_x = y_test_x.sel(level=1000, method="nearest").squeeze()
+
         vprint(f"{cfg.variable.upper()} shapes → train={y_train_x.shape}, test={y_test_x.shape}")
 
         if cfg.src == "era5":
@@ -397,7 +404,7 @@ def load_datasets(cfg):
     if not lmdz_var_map:
         lmdz_var_map = {
             "z": "geop",
-            "q": "shum",
+            "q": "rhum",
             "t": "temp",
             "u": "vitu",
             "v": "vitv",
