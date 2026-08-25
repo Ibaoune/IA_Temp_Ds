@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/eval.py", line 64, in <module>
-    main()
-  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/eval.py", line 41, in main
-    ) = load_datasets(cfg)
-  File "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/src/data/data_loading.py", line 501, in load_datasets
-    raise RuntimeError(f"Failed to load {filename} after 5 attempts.")
-RuntimeError: Failed to load /home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5/q_1979-2020_levels.nc after 5 attempts.

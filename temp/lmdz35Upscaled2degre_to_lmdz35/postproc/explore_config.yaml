@@ -1,0 +1,35 @@
+project:
+  main_config_path: "./temp/main/configs/unet/config_arch.yaml"
+
+exploration:
+  include_prediction: true
+  predictor_variables: ["z", "t", "q", "u", "v"]
+  predictor_levels: [1000, 850, 700, 500]
+
+  save_compact_table_csv: true
+  save_detailed_table_csv: true
+  save_json: true
+  save_table_png: true
+  save_channel_csv: true
+
+data:
+  predictor_pattern: null
+
+  prediction_path: null
+  prediction_var: "air_temperature"
+  prediction_units: null
+
+  reference_path: null
+  reference_var: null
+  reference_units: null
+
+time:
+  use_test_period_from_main_config: true
+  start_date: null
+  end_date: null
+
+plots:
+  seasonal_compare:
+    robust: true
+    save_hd: true
+    figure_name: "seasonal_temperature_comparison.png"

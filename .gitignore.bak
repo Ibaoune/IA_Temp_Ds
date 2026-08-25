@@ -1,0 +1,35 @@
+# Data and files to ignore
+DATA1/
+morocco_shapefile/
+results/
+climate_env/
+temp/results/
+temp/results_test/
+temp/results_test_app1/
+temp/results_test_app2/
+temp/exploration/
+temp/postproc/mean/QQ/
+temp/prediction/
+quick_hist_summary.csv
+glm_pixel_explanation.csv
+temp/XAI/
+temp/main/inspect_glm.py
+#temp/postproc/bano_compare/
+precip
+CRNM
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+log.txt
+
+#configs
+temp/main/configs/unet/lmdz*.yaml
+temp/postproc/**/lmdz*.yaml
+# --- Autoriser le suivi exclusif des graphiques PNG de post-traitement ---
+!temp/era5_mswt/postproc/results/
+temp/era5_mswt/postproc/results/*
+!temp/era5_mswt/postproc/results/**/
+!temp/era5_mswt/postproc/results/**/*.png
