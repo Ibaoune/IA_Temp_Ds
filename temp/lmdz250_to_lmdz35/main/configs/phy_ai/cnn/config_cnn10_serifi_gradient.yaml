@@ -6,8 +6,8 @@ general:
   verbose: true
   experiment: "cnn10_temperature_serifi_gradient"
   variable: "temp"
-  target: "mswt"
-  src: "era5"
+  target: "lmdz35"
+  src: "lmdz250"
   model_type: "cnn10"
   interpolation_type: "linear"
   variables: ["z", "q", "t", "u", "v"]
@@ -64,15 +64,15 @@ dates:
 
 paths:
   # Paths for Mohammad's environment
-  root_dir: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/reanalysis/era5"
-  results_dir: "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/results/phy_ai/cnn10_serifi_gradient"
+  root_dir: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/models/lmdz/r250"
+  results_dir: "/srv/data/mohammad.elaabaribao/work/interns/y2026/temp/ds_temp_intern/temp/era5_mswt/main/../../lmdz250_to_lmdz35/main/results/phy_ai/cnn10_serifi_gradient"
   shapefile_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/shapefiles/Morocco_shpfile/DA_REGIONS_12R.shp"
-  era5_predictor_pattern: "{var}_1979-2020_levels.nc"
-  mswt_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/obs/mswep/mswt_1979_2020.nc"
+  lmdz_predictor_pattern: "{lmdz_var}-hist.nc"
+  lmdz35_path: "/home/mohammad.elaabaribao/lustre/climat-um6p-st-iwri-7ksifkvwkuy/users/mohammad.elaabaribao/data/models/lmdz/r35/temp-hist.nc"
 
   # Paths for Souad's environment
   #root_dir: ""
   #results_dir: "./temp/results/"
   #shapefile_path: "./morocco_shapefile/morocco_unified_fixed_v2.shp"
-  #era5_predictor_pattern: "./DATA1/predictors_era5/{var}_1979-2020_levels.nc"
-  #mswt_path: "./DATA1/predictand_mswet/mswt_1979_2020.nc"
+  #lmdz_predictor_pattern: "./DATA1/predictors_era5/{lmdz_var}-hist.nc"
+  #lmdz35_path: "./DATA1/predictand_mswet/mswt_1979_2020.nc"
