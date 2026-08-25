@@ -1,6 +1,6 @@
 # Statistical Downscaling Repository (Temperature)
 
-**Author:** M. El Aabaribaoune (@um6p)
+**Author:** M. El Aabaribaoune (@um6p) & S. El Mahboub
 
 This repository contains the experiments and environments for statistical downscaling focusing on the **Temperature** variable. The different subdirectories correspond to the project's configurations (M0, M1, M2), aiming to harmonize and test different sources of predictors mapped to high-resolution grids (MSWT, LMDZ35).
 
@@ -24,13 +24,7 @@ This repository contains the experiments and environments for statistical downsc
 - **Contents**:
   - `main/` and `postproc/` sharing the same architecture as the other folders, but specifically configured for the geometric tensors of the M2 experiment.
 
-### 4. `era5_mswt`
-- **Description**: Root development workspace and global tooling directory. It seems to have served as the foundation for structuring the rest of the project and contains utilities for managing the directory tree.
-- **Specific Contents**:
-  - Contains the `setup_project.sh` and `setup_project_rsync.sh` scripts used to build and synchronize the overall structure (univariate and multivariate) on the cluster.
-  - Contains `audit_m0_grids.py` to validate the grid geometry (and the COMMON_2DEG_GRID) before transformation.
-  - Numerous test and prototyping scripts (`scratch_meta*.py`) used during development.
-  - Also contains the original `main/` and `postproc/` folders.
+
 
 ## Standard Experiment Architecture (`main/`)
 
