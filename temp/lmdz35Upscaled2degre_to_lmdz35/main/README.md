@@ -14,8 +14,8 @@ ERA5 -> MSWT
 temp/era5_mswt/main/
 ├── configs/
 │   ├── cnn/
-│   ├── glm/
-│   ├── unet/
+│   ├── CNN/
+│   ├── CNN/
 │   │   ├── config_arch.yaml
 │   │   ├── config_arch1.yaml
 │   │   └── autres configurations classiques
@@ -27,8 +27,8 @@ temp/era5_mswt/main/
 │       │   ├── config_cnn10_xiong_continuity.yaml
 │       │   ├── config_cnn10_xiong_directional.yaml
 │       │   └── config_cnn10_serifi_gradient.yaml
-│       ├── glm/
-│       └── unet/
+│       ├── CNN/
+│       └── CNN/
 │           ├── config_arch1_xiong_continuity.yaml
 │           ├── config_arch1_xiong_directional.yaml
 │           └── config_arch1_serifi_gradient.yaml
@@ -40,26 +40,26 @@ temp/era5_mswt/main/
 └── eval.py
 ```
 
-## Configurations U-Net et CNN
+## Configurations CNN et CNN
 
-Les configurations U-Net classiques sont regroupees dans :
+Les configurations CNN classiques sont regroupees dans :
 
 ```text
-temp/era5_mswt/main/configs/unet/
+temp/era5_mswt/main/configs/CNN/
 ```
 
 Correspondance principale :
 
 ```text
-model_type: "unet"  -> temp/era5_mswt/main/configs/unet/config_arch.yaml
-model_type: "unet1" -> temp/era5_mswt/main/configs/unet/config_arch1.yaml
+model_type: "CNN"  -> temp/era5_mswt/main/configs/CNN/config_arch.yaml
+model_type: "CNN" -> temp/era5_mswt/main/configs/CNN/config_arch1.yaml
 ```
 
-Les configurations U-Net avec contraintes physiques ou structurelles sont
+Les configurations CNN avec contraintes physiques ou structurelles sont
 regroupees dans :
 
 ```text
-temp/era5_mswt/main/configs/phy_ai/unet/
+temp/era5_mswt/main/configs/phy_ai/CNN/
 ```
 
 Voir `configs/README.md` pour les expériences Xiong et Serifi et leurs
@@ -89,7 +89,7 @@ conservent les paramètres d'architecture propres à CNN1 ou CNN10.
 La configuration classique de test/validation reste disponible ici :
 
 ```text
-temp/era5_mswt/main/configs/unet/test_arch1.yaml
+temp/era5_mswt/main/configs/CNN/test_arch1.yaml
 ```
 
 ## Approche supportee
@@ -103,7 +103,7 @@ general:
   src: "era5"
   target: "mswt"
   variable: "temp"
-  model_type: "unet1"
+  model_type: "CNN"
 ```
 
 Les variables d'entree attendues sont :
@@ -123,13 +123,13 @@ Les niveaux verticaux utilises par les configs actuelles sont :
 Depuis la racine du projet :
 
 ```bash
-python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
+python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/CNN/test_arch1.yaml
 ```
 
 Avec l'environnement local Windows :
 
 ```powershell
-.\climate_env\Scripts\python.exe temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
+.\climate_env\Scripts\python.exe temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/CNN/test_arch1.yaml
 ```
 
 ## Lancer l'evaluation
@@ -137,13 +137,13 @@ Avec l'environnement local Windows :
 Depuis la racine du projet :
 
 ```bash
-python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
+python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/CNN/test_arch1.yaml
 ```
 
 Avec l'environnement local Windows :
 
 ```powershell
-.\climate_env\Scripts\python.exe temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/unet/test_arch1.yaml
+.\climate_env\Scripts\python.exe temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/CNN/test_arch1.yaml
 ```
 
 ## Jobs SLURM
@@ -163,13 +163,13 @@ bash temp/era5_mswt/main/scripts/job_gpu.sh
 Les deux scripts utilisent par defaut :
 
 ```text
-temp/era5_mswt/main/configs/unet/test_arch1.yaml
+temp/era5_mswt/main/configs/CNN/test_arch1.yaml
 ```
 
 On peut changer la config sans modifier le script :
 
 ```bash
-MAIN_CONFIG=temp/era5_mswt/main/configs/unet/test_arch1.yaml bash temp/era5_mswt/main/scripts/job_cpu.sh
+MAIN_CONFIG=temp/era5_mswt/main/configs/CNN/test_arch1.yaml bash temp/era5_mswt/main/scripts/job_cpu.sh
 ```
 
 ## Sorties attendues
@@ -195,4 +195,4 @@ La reorganisation des configs ne change donc pas les noms des modeles sauvegarde
 
 - Les noms d'experiences restent definis dans les fichiers YAML.
 - `model_type` continue a selectionner l'architecture du modele.
-- La resolution automatique des configs U-Net est geree par `resolve_model_config_path` dans `temp/era5_mswt/main/src/core/config.py`.
+- La resolution automatique des configs CNN est geree par `resolve_model_config_path` dans `temp/era5_mswt/main/src/core/config.py`.

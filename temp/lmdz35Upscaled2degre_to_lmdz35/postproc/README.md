@@ -17,7 +17,7 @@ config.yaml
 Chaque dossier de metrique contient sa propre config `config.yaml`, qui pointe vers la config principale :
 
 ```text
-temp/main/configs/unet/config_arch1.yaml
+temp/main/configs/CNN/config_arch1.yaml
 ```
 
 ## Structure
@@ -157,4 +157,4 @@ figures PNG
 
 - `run_postproc.sh` utilise `config.yaml` par defaut.
 - Si une autre config est passee par erreur au script, elle est ignoree et `config.yaml` est utilisee.
-- Les chemins `main_config_path` doivent pointer vers `temp/main/configs/unet/config_arch1.yaml` pour l'experience courante.
+- Les chemins `main_config_path` doivent pointer vers `temp/main/configs/CNN/config_arch1.yaml` pour l'experience courante.

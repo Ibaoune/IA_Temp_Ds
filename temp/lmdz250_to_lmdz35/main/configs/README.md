@@ -11,8 +11,8 @@ organized by model family:
 ```text
 configs/
 ├── cnn/
-├── glm/
-└── unet/
+├── CNN/
+└── CNN/
 ```
 
 Configurations that add physical or structural constraints are grouped
@@ -33,8 +33,8 @@ configs/phy_ai/
 │   ├── config_cnn10_xiong_directional_test.yaml
 │   ├── config_cnn10_serifi_gradient.yaml
 │   └── config_cnn10_serifi_gradient_test.yaml
-├── glm/
-└── unet/
+├── CNN/
+└── CNN/
     ├── config_arch1_xiong_continuity.yaml
     ├── config_arch1_xiong_continuity_test.yaml
     ├── config_arch1_xiong_directional.yaml
@@ -45,8 +45,8 @@ configs/phy_ai/
 
 `phy_ai/cnn/` contains the same three independent constraints for both CNN1
 and CNN10, plus a reduced `_test` variant of every configuration.
-`phy_ai/unet/` contains their UNet1 counterparts. `phy_ai/glm/` is reserved
-for future Physics-Informed GLM experiments and does not contain a model
+`phy_ai/CNN/` contains their CNN counterparts. `phy_ai/CNN/` is reserved
+for future Physics-Informed CNN experiments and does not contain a model
 configuration yet.
 
 ## Baseline Models
@@ -62,8 +62,8 @@ The project establishes two primary baselines to benchmark performance:
 * **Scheduler:** None
 * **Regularization:** Dropout (0.1), Weight Decay (1e-4)
 
-### 2. U-Net Optimized Baseline (`unet1`)
-* **Architecture:** U-Net (`unet1`)
+### 2. CNN Optimized Baseline (`CNN`)
+* **Architecture:** CNN (`CNN`)
 * **Loss function:** Gaussian (NLL)
 * **Optimizer:** AdamW
 * **Learning Rate:** 1e-3
@@ -71,7 +71,7 @@ The project establishes two primary baselines to benchmark performance:
 * **Scheduler:** Cosine Annealing
 * **Regularization:** Dropout (0.1), Weight Decay (1e-4)
 
-*(Note: An initial U-Net port named `unet1_temperature` was trained using the basic CNN parameters before establishing the `unet1` optimized baseline).*
+*(Note: An initial CNN port named `unet1_temperature` was trained using the basic CNN parameters before establishing the `CNN` optimized baseline).*
 
 ---
 
@@ -81,32 +81,32 @@ The campaign follows a systematic ablation and hyperparameter tuning strategy to
 
 ### Architecture Experiments
 
-#### CNN vs U-Net Baseline (`unet1_temperature`)
-**Configuration file:** `unet/config_arch1.yaml`
+#### CNN vs CNN Baseline (`unet1_temperature`)
+**Configuration file:** `CNN/config_arch1.yaml`
 
-**Modification relative to baseline:** Uses the U-Net architecture instead of CNN, but keeps CNN training parameters (Adam, BS=64, no scheduler).
+**Modification relative to baseline:** Uses the CNN architecture instead of CNN, but keeps CNN training parameters (Adam, BS=64, no scheduler).
 
-**Objective:** Isolate the impact of the U-Net architecture's spatial skip-connections.
+**Objective:** Isolate the impact of the CNN architecture's spatial skip-connections.
 
-**Hypothesis being tested:** U-Net provides better high-resolution spatial localization than standard CNNs.
+**Hypothesis being tested:** CNN provides better high-resolution spatial localization than standard CNNs.
 
 **Expected impact:** Improved spatial correlation metrics and better extreme value capture.
 
-#### Training Regime Upgrade (`unet1`)
-**Configuration file:** `unet/unet1.yaml` (and identically `unet/unet1_loss_gaussian.yaml`)
+#### Training Regime Upgrade (`CNN`)
+**Configuration file:** `CNN.yaml` (and identically `CNN/unet1_loss_gaussian.yaml`)
 
 **Modification relative to baseline:** Switched from `unet1_temperature` basic params to advanced params: AdamW, Batch Size 32, Cosine Scheduler.
 
-**Objective:** Maximize U-Net convergence capability.
+**Objective:** Maximize CNN convergence capability.
 
-**Hypothesis being tested:** Modern optimization techniques (AdamW + Cosine Annealing) unlock U-Net's full capacity.
+**Hypothesis being tested:** Modern optimization techniques (AdamW + Cosine Annealing) unlock CNN's full capacity.
 
 **Expected impact:** Lower training/validation loss and better overall RMSE.
 
 ### Loss Function Experiments
 
 #### Mean Squared Error vs Gaussian (`cnn_mse_temperature` / `unet1_temp_mse` / `unet1_loss_mse`)
-**Configuration files:** `cnn/config_mse.yaml`, `unet/config_unet1_mse.yaml`, `unet/unet1_loss_mse.yaml`
+**Configuration files:** `cnn/config_mse.yaml`, `CNN/config_unet1_mse.yaml`, `CNN/unet1_loss_mse.yaml`
 
 **Modification relative to baseline:** Replaced the Gaussian Negative Log-Likelihood loss with deterministic MSE.
 
@@ -118,7 +118,7 @@ The campaign follows a systematic ablation and hyperparameter tuning strategy to
 
 ### Physics-Informed AI Experiments
 
-The Physics-Informed configurations use the standard CNN1, CNN10, or UNet1
+The Physics-Informed configurations use the standard CNN1, CNN10, or CNN
 architecture and add one structural constraint at a time.
 
 CNN configurations:
@@ -152,20 +152,20 @@ CNN counterpart, but uses 20 epochs, a batch size of 4, training over
 percentage (0.1, inactive while validation is disabled) are preserved. These
 are reduced experiment configurations, not one-day smoke tests.
 
-UNet1 configurations:
+CNN configurations:
 
-- `phy_ai/unet/config_arch1_xiong_continuity.yaml`
-  - Architecture: `UNet1`
+- `phy_ai/CNN/config_arch1_xiong_continuity.yaml`
+  - Architecture: `CNN`
   - Loss: `xiong_continuity`
   - Constraint: spatial continuity
   - Output: deterministic, one channel
-- `phy_ai/unet/config_arch1_xiong_directional.yaml`
-  - Architecture: `UNet1`
+- `phy_ai/CNN/config_arch1_xiong_directional.yaml`
+  - Architecture: `CNN`
   - Loss: `xiong_directional`
   - Constraint: directional consistency
   - Output: deterministic, one channel
-- `phy_ai/unet/config_arch1_serifi_gradient.yaml`
-  - Architecture: `UNet1`
+- `phy_ai/CNN/config_arch1_serifi_gradient.yaml`
+  - Architecture: `CNN`
   - Loss: `serifi_gradient`
   - Data term: pointwise L1
   - Constraint: local L1 agreement of forward spatial differences along x
@@ -202,27 +202,27 @@ python temp/era5_mswt/main/train.py temp/era5_mswt/main/configs/phy_ai/cnn/<conf
 python temp/era5_mswt/main/eval.py temp/era5_mswt/main/configs/phy_ai/cnn/<config>
 ```
 
-Run the UNet1 experiments from the `temp/era5_mswt/main` directory:
+Run the CNN experiments from the `temp/era5_mswt/main` directory:
 
 ```bash
 cd temp/era5_mswt/main
 
-python train.py configs/phy_ai/unet/config_arch1_xiong_continuity.yaml
-python eval.py configs/phy_ai/unet/config_arch1_xiong_continuity.yaml
+python train.py configs/phy_ai/CNN/config_arch1_xiong_continuity.yaml
+python eval.py configs/phy_ai/CNN/config_arch1_xiong_continuity.yaml
 
-python train.py configs/phy_ai/unet/config_arch1_xiong_directional.yaml
-python eval.py configs/phy_ai/unet/config_arch1_xiong_directional.yaml
+python train.py configs/phy_ai/CNN/config_arch1_xiong_directional.yaml
+python eval.py configs/phy_ai/CNN/config_arch1_xiong_directional.yaml
 
-python train.py configs/phy_ai/unet/config_arch1_serifi_gradient.yaml
-python eval.py configs/phy_ai/unet/config_arch1_serifi_gradient.yaml
+python train.py configs/phy_ai/CNN/config_arch1_serifi_gradient.yaml
+python eval.py configs/phy_ai/CNN/config_arch1_serifi_gradient.yaml
 ```
 
 ### Optimization Experiments
 
 #### Batch Size Variations (`cnn_bs32_temperature` / `unet1_temp_bs32` / `unet_bs_64`)
-**Configuration files:** `cnn/config_bs32.yaml`, `unet/config_unet1_bs32.yaml`, `unet/unet_bs_64.yaml`
+**Configuration files:** `cnn/config_bs32.yaml`, `CNN/config_unet1_bs32.yaml`, `CNN/unet_bs_64.yaml`
 
-**Modification relative to baseline:** Inverted the batch sizes (from 64 to 32 for CNN/early-UNet, and from 32 to 64 for optimized UNet).
+**Modification relative to baseline:** Inverted the batch sizes (from 64 to 32 for CNN/early-CNN, and from 32 to 64 for optimized CNN).
 
 **Objective:** Evaluate the generalization gap induced by batch size.
 
@@ -231,18 +231,18 @@ python eval.py configs/phy_ai/unet/config_arch1_serifi_gradient.yaml
 **Expected impact:** Improved validation loss and reduced overfitting for Batch Size 32.
 
 #### Learning Rate Decay (`unet_lr_1e4` / `unet_lr_5e4`)
-**Configuration files:** `unet/unet_lr_1e4.yaml`, `unet/unet_lr_5e4.yaml`
+**Configuration files:** `CNN/unet_lr_1e4.yaml`, `CNN/unet_lr_5e4.yaml`
 
 **Modification relative to baseline:** Reduced base learning rate from 1e-3 to 1e-4 and 5e-4 respectively.
 
 **Objective:** Prevent catastrophic forgetting or divergence during Cosine Annealing.
 
-**Hypothesis being tested:** The default 1e-3 LR might be too aggressive for the U-Net's deep layers.
+**Hypothesis being tested:** The default 1e-3 LR might be too aggressive for the CNN's deep layers.
 
 **Expected impact:** Smoother, albeit slower, convergence curves and potentially better fine-grained spatial accuracy.
 
 #### Scheduler Removal (`unet_no_scheduler`)
-**Configuration file:** `unet/unet_no_scheduler.yaml`
+**Configuration file:** `CNN/unet_no_scheduler.yaml`
 
 **Modification relative to baseline:** Disabled the Cosine Annealing scheduler.
 
@@ -250,23 +250,23 @@ python eval.py configs/phy_ai/unet/config_arch1_serifi_gradient.yaml
 
 **Hypothesis being tested:** A static learning rate causes the model to plateau in suboptimal local minima.
 
-**Expected impact:** Higher final RMSE compared to the baseline `unet1`.
+**Expected impact:** Higher final RMSE compared to the baseline `CNN`.
 
 ### Regularization Experiments
 
 #### Elevated Dropout (`unet1_temp_reg` / `unet_dropout_02`)
-**Configuration files:** `unet/config_unet1_reg.yaml` (Dropout 0.3), `unet/unet_dropout_02.yaml` (Dropout 0.2)
+**Configuration files:** `CNN/config_unet1_reg.yaml` (Dropout 0.3), `CNN/unet_dropout_02.yaml` (Dropout 0.2)
 
 **Modification relative to baseline:** Increased Dropout from 0.1 to 0.2 and 0.3.
 
 **Objective:** Combat overfitting.
 
-**Hypothesis being tested:** The U-Net architecture might be heavily memorizing the training climatology.
+**Hypothesis being tested:** The CNN architecture might be heavily memorizing the training climatology.
 
 **Expected impact:** Reduced gap between Training and Validation loss; potentially worse raw bias due to underfitting if 0.3 is too high.
 
 #### Aggressive Weight Decay (`unet_weight_decay_1e3`)
-**Configuration file:** `unet/unet_weight_decay_1e3.yaml`
+**Configuration file:** `CNN/unet_weight_decay_1e3.yaml`
 
 **Modification relative to baseline:** Increased AdamW weight decay from 1e-4 to 1e-3.
 
@@ -281,7 +281,7 @@ python eval.py configs/phy_ai/unet/config_arch1_serifi_gradient.yaml
 ## Experiment Design Logic
 
 The overall strategy of this campaign is structured as a hierarchical grid search focused on empirical climate downscaling:
-1. **First phase:** Establish if a complex spatial architecture (U-Net) outperforms a local one (CNN).
+1. **First phase:** Establish if a complex spatial architecture (CNN) outperforms a local one (CNN).
 2. **Second phase:** Determine the most robust loss function for climate fields. The debate between MSE (mean-seeking) and Gaussian (distribution-seeking) is critical for capturing climate extremes like heatwaves.
 3. **Third phase:** Once the architecture and loss are set, tune the optimization landscape. Climate datasets are highly correlated sequentially, so finding the right batch size and learning rate scheduler is key to proper gradient descent.
 4. **Final phase:** Apply strict regularization (Dropout, Weight Decay) to ensure the downscaled outputs don't just memorize the topography, but actually learn transferrable thermodynamic mappings.
@@ -294,11 +294,11 @@ The overall strategy of this campaign is structured as a hierarchical grid searc
 | ---------- | -------- | ------------------ | --------- | ------------- |
 | `cnn_temperature` | Baseline | None (CNN Base) | Reference benchmark | Yes |
 | `cnn1_temperature` | Baseline | Mode (cnn1) | Shallow vs Deep CNN | Yes |
-| `unet1_temperature` | Arch | UNet (CNN params) | Evaluate architecture | Yes |
-| `unet1` | Baseline | AdamW, BS=32, Cosine | Optimized UNet Ref | Yes |
+| `unet1_temperature` | Arch | CNN (CNN params) | Evaluate architecture | Yes |
+| `CNN` | Baseline | AdamW, BS=32, Cosine | Optimized CNN Ref | Yes |
 | `cnn_mse_temperature` | Loss | Loss = MSE | CNN deterministic | Yes |
-| `unet1_temp_mse` | Loss | Loss = MSE (Basic) | UNet deterministic | Yes |
-| `unet1_loss_mse` | Loss | Loss = MSE (Optim) | UNet deterministic | Yes |
+| `unet1_temp_mse` | Loss | Loss = MSE (Basic) | CNN deterministic | Yes |
+| `unet1_loss_mse` | Loss | Loss = MSE (Optim) | CNN deterministic | Yes |
 | `unet1_loss_gaussian` | Loss | None (Duplicate) | Baseline validation | Yes |
 | `cnn_bs32_temperature` | Optim | Batch Size = 32 | Implicit regularization | Yes |
 | `unet1_temp_bs32` | Optim | Batch Size = 32 | Implicit regularization | Yes |
